@@ -46,7 +46,7 @@ FIRECRAWL_API_KEY=fc-...
 SERPER_API_KEY=...
 
 # Flask
-PORT=5000
+PORT=5100
 CORS_ORIGINS=http://localhost:3000,http://localhost:5173
 
 # Cache
@@ -70,13 +70,13 @@ OPENAI_MODEL=gpt-4o
 
 ```bash
 python main.py
-# → http://localhost:5000
+# → http://localhost:5100
 ```
 
 ### Production
 
 ```bash
-gunicorn --bind 0.0.0.0:5000 --workers 4 "app:create_app()"
+gunicorn --bind 0.0.0.0:5100 --workers 4 "app:create_app()"
 ```
 
 ### Docker
@@ -86,7 +86,7 @@ gunicorn --bind 0.0.0.0:5000 --workers 4 "app:create_app()"
 docker build -t lumironscraper-backend .
 
 # Run
-docker run -p 5000:5000 --env-file .env lumironscraper-backend
+docker run -p 5100:5100 --env-file .env lumironscraper-backend
 ```
 
 ## 📡 API Endpoints
@@ -250,7 +250,7 @@ python3.12 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 nano .env
-gunicorn --bind 0.0.0.0:5000 --workers 4 "app:create_app()"
+gunicorn --bind 0.0.0.0:5100 --workers 4 "app:create_app()"
 ```
 
 ## 🛠️ Développement
@@ -275,10 +275,10 @@ print(f"[Service] ⚠ Warning")
 
 ```bash
 # Health check
-curl http://localhost:5000/api/v1/health
+curl http://localhost:5100/api/v1/health
 
 # Search
-curl -X POST http://localhost:5000/api/v1/search \
+curl -X POST http://localhost:5100/api/v1/search \
   -H "Content-Type: application/json" \
   -d '{"first_name":"Satya","last_name":"Nadella","company":"Microsoft"}'
 ```
