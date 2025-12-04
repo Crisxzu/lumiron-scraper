@@ -2,7 +2,8 @@
 
 **Intelligence de profils professionnels pour accompagner vos démarches commerciales**
 
-Solution full-stack de scraping et d'analyse de profils professionnels. À partir d'un prénom, nom et entreprise, le système collecte des informations publiques sur le web et utilise l'IA pour générer un profil structuré en français.
+Solution full-stack de scraping et d'analyse de profils professionnels. <br/>
+À partir d'un prénom, nom et entreprise, le système collecte des informations publiques sur le web et utilise l'IA pour générer un profil structuré en français.
 
 ---
 
@@ -353,7 +354,8 @@ Nettoie les entrées expirées du cache.
 
 ### Architecture Modulaire des Sources
 
-LumironScraper utilise un système de **sources modulaires** pour le scraping. Chaque source hérite de `BaseSource` et est automatiquement chargée.
+LumironScraper utilise un système de **sources modulaires** pour le scraping. <br/>
+Chaque source hérite de `BaseSource` et est automatiquement chargée.
 
 #### Ajouter une nouvelle source
 
