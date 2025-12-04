@@ -244,7 +244,7 @@ git push heroku main
 
 ```bash
 sudo apt install python3.12 python3.12-venv
-git clone https://github.com/your-repo/LumironScraper.git
+git clone https://github.com/Crisxzu/lumiron-scraper.git
 cd LumironScraper/backend
 python3.12 -m venv venv
 source venv/bin/activate
