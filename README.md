@@ -194,6 +194,23 @@ npm run dev
 
 ## 🐳 Docker Compose
 
+### Configuration Frontend
+
+Le frontend nécessite l'URL de l'API au **moment du build** (pas au runtime) :
+
+```bash
+# 1. Configurer l'URL de l'API
+cd frontend
+cp .env.example .env
+nano .env  # Éditer VITE_API_URL
+
+# 2. Lancer avec Docker Compose
+cd ..
+docker-compose up -d --build
+```
+
+Le `docker-compose.yml` passe automatiquement `VITE_API_URL` depuis `frontend/.env` comme build argument.
+
 ### Démarrage
 
 ```bash
@@ -206,6 +223,13 @@ docker-compose up -d
 docker-compose logs -f
 docker-compose logs -f backend
 docker-compose logs -f frontend
+```
+
+### Rebuild après changement d'URL
+
+```bash
+# Si vous modifiez VITE_API_URL dans frontend/.env
+docker-compose up -d --build frontend
 ```
 
 ### Persistance des données
@@ -221,7 +245,7 @@ volumes:
 
 ### Healthcheck
 
-Le backend inclut un healthcheck Python natif :
+Le backend inclut un healthcheck Python natif (pas besoin de curl) :
 
 ```yaml
 healthcheck:

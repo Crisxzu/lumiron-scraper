@@ -4,11 +4,13 @@ Interface React pour LumironScraper - Scraping et analyse intelligente de profil
 
 ## 🎯 Fonctionnalités
 
+- **Layout dynamique** - Formulaire centré par défaut, se déplace à gauche quand résultats affichés
+- **Animations fluides** - Slide-in depuis la droite pour les résultats
 - **Recherche intuitive** - Formulaire simple (prénom, nom, entreprise)
-- **Force refresh** - Option pour ignorer le cache
-- **Indicateur cache** - Affiche si les données viennent du cache ou sont fraîches
+- **Force refresh** - Checkbox pour ignorer le cache
+- **Indicateur cache** - Badge vert (cache) ou bleu (frais) avec âge en minutes
 - **Affichage structuré** - Profil professionnel formaté et lisible
-- **Responsive** - Design adaptatif mobile/desktop
+- **Responsive design** - Layout côte à côte (desktop), empilé (mobile)
 - **Tailwind CSS** - Interface moderne et performante
 
 ## 🔧 Prérequis
@@ -71,15 +73,17 @@ Les fichiers buildés seront dans `dist/`.
 ```
 frontend/
 ├── src/
-│   ├── App.jsx              # Composant principal
+│   ├── App.jsx              # Composant principal + layout dynamique
 │   ├── main.jsx             # Point d'entrée
-│   ├── index.css            # Styles globaux + Tailwind
+│   ├── index.css            # Styles globaux + animations custom
 │   ├── components/
-│   │   ├── SearchForm.jsx   # Formulaire de recherche
+│   │   ├── SearchForm.jsx   # Formulaire + force refresh
 │   │   └── ProfileResults.jsx  # Affichage du profil
 │   └── services/
 │       └── api.js           # Client API Axios
 ├── public/                  # Assets statiques
+├── nginx.conf               # Config Nginx pour Docker
+├── Dockerfile               # Build multi-stage
 ├── index.html
 ├── vite.config.js
 ├── tailwind.config.js
@@ -154,6 +158,47 @@ Badge affiché au-dessus du profil :
 
 ## 🚢 Déploiement
 
+### Docker (Recommandé)
+
+Le Dockerfile inclus utilise un **build multi-stage** avec Nginx :
+
+```bash
+# Build avec URL d'API custom
+docker build --build-arg VITE_API_URL=https://your-api.com/api/v1 -t lumironscraper-frontend .
+
+# Run
+docker run -p 5101:80 lumironscraper-frontend
+```
+
+**Important :** Les variables d'environnement Vite (`VITE_*`) doivent être passées au **moment du build**, pas au runtime, car Vite les remplace lors de la compilation.
+
+### Docker Compose
+
+Le `docker-compose.yml` à la racine du projet gère automatiquement le build :
+
+```yaml
+frontend:
+  build:
+    context: ./frontend
+    args:
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:5100/api/v1}
+  env_file:
+    - ./frontend/.env
+```
+
+Le fichier `./frontend/.env` est automatiquement lu et `VITE_API_URL` est passé comme build argument.
+
+**Usage :**
+
+```bash
+# Configuration
+cp .env.example .env
+nano .env  # Éditer VITE_API_URL
+
+# Build et lancer
+docker-compose up -d --build frontend
+```
+
 ### Netlify
 
 ```bash
@@ -173,32 +218,7 @@ VITE_API_URL=https://your-api.com/api/v1
 vercel --prod
 ```
 
-Configuration automatique via `vite.config.js`.
-
-### Docker
-
-```bash
-# Build
-docker build -t lumironscraper-frontend .
-
-# Run
-docker run -p 80:80 lumironscraper-frontend
-```
-
-**Dockerfile exemple:**
-```dockerfile
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-RUN npm run build
-
-FROM nginx:alpine
-COPY --from=builder /app/dist /usr/share/nginx/html
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
-```
+Ajouter la variable d'environnement `VITE_API_URL` dans les settings du projet Vercel.
 
 ## 🛠️ Développement
 
@@ -238,17 +258,48 @@ Vite détecte automatiquement les changements et recharge la page.
 
 ## 📱 Responsive Design
 
-Breakpoints Tailwind :
+### Layout adaptatif
+
+- **Mobile (< 1024px)** : Layout vertical empilé (formulaire → résultats)
+- **Desktop (≥ 1024px)** : Layout horizontal côte à côte (formulaire gauche, résultats droite)
+- **Layout dynamique** : Le formulaire est centré par défaut, puis se déplace à gauche quand les résultats apparaissent
+
+### Breakpoints Tailwind
+
 - `sm:` - 640px et +
 - `md:` - 768px et +
-- `lg:` - 1024px et +
+- `lg:` - 1024px et + (activation du layout côte à côte)
 - `xl:` - 1280px et +
 
 Exemple :
 ```jsx
-<div className="text-4xl md:text-5xl">
-  {/* 4xl sur mobile, 5xl sur tablette+ */}
+<div className={`w-full transition-all duration-300 ${
+  profile || loading ? 'lg:w-1/2 lg:sticky lg:top-8' : 'lg:w-full'
+}`}>
+  {/* Largeur dynamique selon l'état */}
 </div>
+```
+
+### Animations CSS custom
+
+```css
+/* Slide-in depuis la droite (résultats) */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Fade-in simple (erreurs, instructions) */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 ```
 
 ## 📚 Stack Technique
