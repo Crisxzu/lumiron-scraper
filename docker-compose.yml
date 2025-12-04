@@ -20,7 +20,7 @@ services:
     build: ./frontend
     container_name: lumironscraper-frontend
     ports:
-      - "3000:80"
+      - "5101:80"
     env_file:
       - ./frontend/.env
     depends_on:

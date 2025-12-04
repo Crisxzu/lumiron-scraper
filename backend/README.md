@@ -47,7 +47,7 @@ SERPER_API_KEY=...
 
 # Flask
 PORT=5100
-CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+CORS_ORIGINS=http://localhost:5101,http://localhost:5173
 
 # Cache
 CACHE_TTL_SECONDS=604800  # 7 jours

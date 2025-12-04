@@ -140,7 +140,7 @@ nano backend/.env  # Ajouter vos clés API
 docker-compose up -d
 
 # 3. Accéder
-# Frontend: http://localhost:3000
+# Frontend: http://localhost:5101
 # Backend:  http://localhost:5100
 # Health:   http://localhost:5100/api/v1/health
 ```
@@ -524,7 +524,7 @@ Configuration automatique via `vite.config.js`.
 | `MAX_TOTAL_SCRAPES` | `3` | Nombre max de scrapes |
 | `DATABASE_PATH` | `data/lumironscraper.db` | Chemin de la DB SQLite |
 | `CACHE_TTL_SECONDS` | `604800` | TTL du cache (7 jours) |
-| `CORS_ORIGINS` | `http://localhost:3000,...` | Origins CORS autorisées |
+| `CORS_ORIGINS` | `http://localhost:5101,...` | Origins CORS autorisées |
 
 ### Variables d'environnement Frontend
 
@@ -536,7 +536,7 @@ Configuration automatique via `vite.config.js`.
 
 ## 🎯 Utilisation
 
-1. **Ouvrir l'interface** : http://localhost:3000
+1. **Ouvrir l'interface** : http://localhost:5101
 2. **Remplir le formulaire** :
    - Prénom (ex: Satya)
    - Nom (ex: Nadella)
