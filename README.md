@@ -1,9 +1,9 @@
 # 🔍 LumironScraper
 
-**Intelligence de profils professionnels pour accompagner vos démarches commerciales**
+**Due Diligence OSINT - Intelligence économique et analyse de risque**
 
-Solution full-stack de scraping et d'analyse de profils professionnels. <br/>
-À partir d'un prénom, nom et entreprise, le système collecte des informations publiques sur le web et utilise l'IA pour générer un profil structuré en français.
+Solution full-stack pour l'analyse complète de profils professionnels avec données officielles françaises. <br/>
+À partir d'un prénom, nom et entreprise, le système collecte des informations publiques (web + bases légales) et utilise GPT-4o pour générer une analyse Due Diligence enrichie en 18 sections avec scoring de risque.
 
 ---
 
@@ -25,19 +25,22 @@ Solution full-stack de scraping et d'analyse de profils professionnels. <br/>
 
 ### Backend
 - **Python 3.12.6** - Runtime
-- **Flask** - Framework web léger et performant
-- **OpenAI GPT-4o** - Analyse et structuration des données en français
-- **Firecrawl** - Scraping web robuste
+- **Flask** - Framework web avec support SSE (Server-Sent Events)
+- **OpenAI GPT-4o** - Analyse Due Diligence avec température 0.3
+- **Firecrawl** - Scraping web robuste (15 scrapes/profil)
 - **Serper** - API de recherche Google
+- **Pappers API** - Données légales et financières françaises
+- **DVF (open data)** - Transactions immobilières françaises
+- **HATVP (open data)** - Personnes politiquement exposées (PPE)
 - **SQLite** - Cache avec expiration configurable (7 jours par défaut)
-- **Pydantic** - Validation des schémas de données
-- **Jinja2** - Templates pour les prompts LLM
+- **Pydantic** - Validation des schémas v3 (18 sections)
+- **Jinja2** - Templates pour les prompts avec exemples inline
 
 ### Frontend
-- **React 18** - Interface utilisateur moderne
+- **React 18** - Interface utilisateur moderne avec 6 onglets
 - **Vite** - Build tool ultra-rapide
 - **Tailwind CSS** - Styling responsive et professionnel
-- **Axios** - Client HTTP
+- **Server-Sent Events** - Progression temps réel (~2-3min)
 - **Layout dynamique** - Côte à côte sur desktop, empilé sur mobile
 
 ### DevOps
@@ -50,24 +53,27 @@ Solution full-stack de scraping et d'analyse de profils professionnels. <br/>
 
 ## ✨ Fonctionnalités
 
-### Backend
-- ✅ **Architecture modulaire** - Système de sources extensible (Serper, sites entreprises, etc.)
-- ✅ **Cache SQLite intelligent** - TTL configurable + statistiques
-- ✅ **Force refresh** - Option pour ignorer le cache
-- ✅ **Multi-profils LinkedIn** - Fusion automatique de tous les profils trouvés
-- ✅ **Prompts Jinja2** - Templates éditables sans toucher au code
-- ✅ **CORS configurable** - Via variable d'environnement
-- ✅ **Timezone-aware** - Gestion UTC pour le cache
-- ✅ **Health check** - Endpoint de monitoring
-- ✅ **Analyse LLM en français** - Tous les résultats structurés en français
+### Backend (v3)
+- ✅ **Due Diligence enrichie** - 18 sections vs 11 en v2 (psychologie, finances, réseau, analyse juridique)
+- ✅ **Sources officielles FR** - Pappers (légal/financier), DVF (immobilier), HATVP (PPE)
+- ✅ **SSE streaming** - Progression temps réel avec 6 étapes (~2-3min)
+- ✅ **Double sécurité** - Prompt renforcé + validation Python post-LLM (anti-hallucination)
+- ✅ **Scoring de risque** - Crédibilité, réputation, influence, fiabilité (/100) + niveau de risque
+- ✅ **Red flags** - Détection automatique avec sévérité (Critique/Modéré/Mineur)
+- ✅ **Traçabilité** - Sources obligatoires pour chaque donnée financière
+- ✅ **Architecture modulaire** - Système de sources extensible
+- ✅ **Cache SQLite intelligent** - TTL configurable + force refresh
+- ✅ **Analyse en français** - Tous les résultats structurés en français
 
-### Frontend
-- ✅ **Layout côte à côte** - Formulaire gauche, résultats droite (desktop)
-- ✅ **Animations fluides** - Slide-in depuis la droite pour les résultats
-- ✅ **Responsive design** - Mobile-first avec breakpoints Tailwind
-- ✅ **Indicateur de cache** - Badge vert (cache) ou bleu (frais) avec âge
-- ✅ **Force refresh checkbox** - Ignorer le cache facilement
+### Frontend (v3)
+- ✅ **6 onglets organisés** - Vue d'ensemble, Expérience, Financier, Médias, Réseau, Analyse
+- ✅ **Progression temps réel** - Barre de progression SSE avec 6 étapes visuelles
+- ✅ **Scores visuels** - Affichage des 4 scores (/100) + badge niveau de risque
+- ✅ **Red flags avec badges** - Alertes colorées par sévérité
+- ✅ **Timeline chronologique** - Visualisation de la carrière avec dots et lignes
+- ✅ **Traçabilité sources** - Affichage des sources sous chaque donnée financière
 - ✅ **Layout dynamique** - Formulaire centré par défaut, se déplace à gauche au chargement
+- ✅ **Responsive design** - Mobile-first avec breakpoints Tailwind
 
 ---
 
@@ -81,20 +87,23 @@ lumiron-scraper/
 │   │   ├── db/
 │   │   │   └── database.py          # Setup SQLite
 │   │   ├── models/
-│   │   │   └── person_profile.py    # Schémas Pydantic
+│   │   │   ├── person_profile.py    # Schémas Pydantic v3 (18 sections)
+│   │   │   └── person_profile_v3.py # Modèles enrichis
 │   │   ├── routes/
-│   │   │   └── api_routes.py        # Endpoints REST
+│   │   │   └── api_routes.py        # Endpoints REST + SSE streaming
 │   │   ├── services/
 │   │   │   ├── cache_service.py     # Gestion cache SQLite
-│   │   │   ├── llm_service.py       # OpenAI GPT-4
+│   │   │   ├── llm_service.py       # GPT-4o + validation post-LLM
 │   │   │   ├── profile_service.py   # Orchestration
 │   │   │   └── scraper_service.py   # Pipeline scraping
 │   │   ├── sources/                 # 🔌 Architecture modulaire
 │   │   │   ├── base_source.py       # Classe abstraite
 │   │   │   ├── serper_search_source.py
-│   │   │   └── company_website_source.py
-│   │   ├── templates/prompts/       # Templates Jinja2
-│   │   │   └── profile_analysis.txt
+│   │   │   ├── pappers_source.py    # Données légales FR
+│   │   │   ├── dvf_source.py        # Immobilier FR
+│   │   │   └── hatvp_source.py      # PPE FR
+│   │   ├── templates/prompts/       # Templates Jinja2 + exemples inline
+│   │   │   └── due_diligence_analysis.txt  # Prompt v3
 │   │   └── utils/
 │   │       └── url_validator.py
 │   ├── data/                        # SQLite DB (auto-créé)
@@ -109,10 +118,10 @@ lumiron-scraper/
 │   ├── src/
 │   │   ├── components/
 │   │   │   ├── SearchForm.jsx       # Formulaire + force refresh
-│   │   │   └── ProfileResults.jsx   # Affichage profil
+│   │   │   └── ProfileResults.jsx   # 6 onglets + 18 sections v3
 │   │   ├── services/
-│   │   │   └── api.js               # Client Axios
-│   │   ├── App.jsx                  # Layout dynamique
+│   │   │   └── api.js               # Client SSE + fetch
+│   │   ├── App.jsx                  # Layout dynamique + progression SSE
 │   │   ├── main.jsx
 │   │   └── index.css                # Animations custom
 │   ├── public/
@@ -163,7 +172,7 @@ pip install -r requirements.txt
 
 # Configuration
 cp .env.example .env
-nano .env  # Ajouter OPENAI_API_KEY, FIRECRAWL_API_KEY, SERPER_API_KEY
+nano .env  # Ajouter OPENAI_API_KEY, FIRECRAWL_API_KEY, SERPER_API_KEY, PAPPERS_API_KEY
 
 # Lancer
 python main.py
@@ -285,59 +294,67 @@ Vérifie l'état du serveur.
 
 ---
 
-### `POST /api/v1/search`
+### `POST /api/v1/search-stream` (Recommandé)
 
-Recherche et analyse un profil professionnel.
+Recherche avec streaming SSE - Progression temps réel.
 
 **Body:**
 ```json
 {
-  "first_name": "Satya",
-  "last_name": "Nadella",
-  "company": "Microsoft",
-  "force_refresh": false  // Optionnel
+  "first_name": "Anthony",
+  "last_name": "Tartour",
+  "company": "Lumiron",
+  "force_refresh": false
 }
 ```
 
-**Réponse:**
+**Réponse (Server-Sent Events):**
+```
+data: {"type":"progress","step":"cache","percent":5,"message":"Vérification du cache..."}
+data: {"type":"progress","step":"pappers","percent":15,"message":"Récupération données Pappers..."}
+data: {"type":"progress","step":"scraping","percent":50,"message":"Scraping des pages (15 scrapes, ~2min)..."}
+data: {"type":"progress","step":"analysis","percent":85,"message":"Analyse GPT-4o..."}
+data: {"type":"complete","data":{...profil v3...}}
+```
+
+---
+
+### `POST /api/v1/search`
+
+Recherche classique (sans streaming).
+
+**Body:**
+```json
+{
+  "first_name": "Anthony",
+  "last_name": "Tartour",
+  "company": "Lumiron",
+  "force_refresh": false
+}
+```
+
+**Réponse (v3 - 18 sections):**
 ```json
 {
   "success": true,
-  "cached": true,
-  "cache_age_seconds": 3600,
-  "cache_created_at": "2025-12-04T10:00:00",
+  "cached": false,
   "data": {
-    "full_name": "Satya Nadella",
-    "current_position": "Directeur Général",
-    "company": "Microsoft",
-    "professional_experience": [
-      {
-        "position": "CEO",
-        "company": "Microsoft",
-        "period": "2014 - Présent",
-        "description": "..."
-      }
-    ],
-    "skills": ["Leadership", "Cloud Computing", "Transformation digitale"],
-    "publications": [
-      {
-        "title": "Hit Refresh",
-        "date": "2017",
-        "description": "..."
-      }
-    ],
-    "public_contact": {
-      "email": null,
-      "phone": null,
-      "linkedin": "https://linkedin.com/in/satyanadella"
-    },
-    "summary": "Satya Nadella est le Directeur Général de Microsoft depuis 2014...",
-    "linkedin_url": "https://linkedin.com/in/satyanadella",
-    "sources": [
-      "https://linkedin.com/in/satyanadella",
-      "https://microsoft.com/...",
-      "..."
-    ]
+    "full_name": "Anthony Tartour",
+    "current_position": "Co-Founder",
+    "company": "Lumiron",
+    "credibility_score": 75,
+    "reputation_score": 80,
+    "influence_score": 65,
+    "reliability_score": 70,
+    "risk_level": "Moyen",
+    "professional_experience": [...],
+    "business_ecosystem": {...},
+    "financial_intelligence": {...},
+    "psychology_and_approach": {...},
+    "media_presence": {...},
+    "red_flags": [...],
+    "career_timeline": [...],
+    // + 12 autres sections
   }
 }
 ```
@@ -435,8 +452,10 @@ python main.py
 Les prompts sont des **templates Jinja2** éditables sans toucher au code :
 
 ```bash
-nano backend/app/templates/prompts/profile_analysis.txt
+nano backend/app/templates/prompts/due_diligence_analysis.txt
 ```
+
+Le prompt v3 inclut des **exemples inline** directement dans la structure JSON pour guider GPT-4o.
 
 Redémarrer pour appliquer les changements.
 
@@ -466,6 +485,7 @@ heroku create lumironscraper-backend
 heroku config:set OPENAI_API_KEY=sk-...
 heroku config:set FIRECRAWL_API_KEY=fc-...
 heroku config:set SERPER_API_KEY=...
+heroku config:set PAPPERS_API_KEY=...
 git push heroku main
 ```
 
@@ -542,10 +562,12 @@ Configuration automatique via `vite.config.js`.
 | `OPENAI_API_KEY` | - | Clé API OpenAI (obligatoire) |
 | `FIRECRAWL_API_KEY` | - | Clé API Firecrawl (obligatoire) |
 | `SERPER_API_KEY` | - | Clé API Serper (obligatoire) |
+| `PAPPERS_API_KEY` | - | Clé API Pappers (obligatoire) |
+| `PAPPERS_MODE` | `standard` | Mode Pappers (`standard` ou `complete`) |
 | `PORT` | `5100` | Port du backend |
 | `FLASK_DEBUG` | `0` | Mode debug (0=prod, 1=dev) |
 | `OPENAI_MODEL` | `gpt-4o` | Modèle OpenAI |
-| `MAX_TOTAL_SCRAPES` | `3` | Nombre max de scrapes |
+| `MAX_TOTAL_SCRAPES` | `15` | Nombre max de scrapes (v3) |
 | `DATABASE_PATH` | `data/lumironscraper.db` | Chemin de la DB SQLite |
 | `CACHE_TTL_SECONDS` | `604800` | TTL du cache (7 jours) |
 | `CORS_ORIGINS` | `http://localhost:5101,...` | Origins CORS autorisées |
@@ -562,23 +584,20 @@ Configuration automatique via `vite.config.js`.
 
 1. **Ouvrir l'interface** : http://localhost:5101
 2. **Remplir le formulaire** :
-   - Prénom (ex: Satya)
-   - Nom (ex: Nadella)
-   - Entreprise (ex: Microsoft)
+   - Prénom (ex: Anthony)
+   - Nom (ex: Tartour)
+   - Entreprise (ex: Lumiron)
    - ☑️ Force refresh (optionnel, pour ignorer le cache)
 3. **Cliquer sur "Rechercher"**
-4. **Consulter le profil** structuré :
-   - Nom complet + poste actuel
-   - Résumé professionnel
-   - Expérience détaillée
-   - Compétences
-   - Publications
-   - Contact public
-   - Sources utilisées
-
-**Badge de cache :**
-- 🟢 Vert : Données du cache (avec âge en minutes)
-- 🔵 Bleu : Données fraîches (nouvellement scrapées)
+4. **Suivre la progression** (6 étapes, ~2-3min) :
+   - Vérification cache → Pappers → DVF → HATVP → Scraping → Analyse GPT-4o
+5. **Consulter le profil v3** (6 onglets) :
+   - **Vue d'ensemble** : Scores, niveau de risque, résumé, red flags
+   - **Expérience** : Parcours professionnel, timeline chronologique
+   - **Financier** : Intelligence financière avec sources, écosystème d'affaires, patrimoine immobilier, PPE
+   - **Médias & Réputation** : Présence médiatique avec sentiment, publications
+   - **Réseau & Influence** : Connexions, indicateurs d'influence
+   - **Analyse** : Psychologie avec traits justifiés, ice breakers, cohérence
 
 ---
 
