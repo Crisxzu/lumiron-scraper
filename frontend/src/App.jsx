@@ -1,42 +1,66 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import SearchForm from './components/SearchForm';
 import ProfileResults from './components/ProfileResults';
-import { searchPerson } from './services/api';
+import { searchPerson, searchPersonStream } from './services/api';
 
 function App() {
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState(null);
   const [error, setError] = useState(null);
   const [cacheInfo, setCacheInfo] = useState(null);
+  const [progress, setProgress] = useState({ percent: 0, message: '', step: '' });
+  const cancelRef = useRef(null);
 
   const handleSearch = async (formData) => {
+    // Annuler toute recherche en cours
+    if (cancelRef.current) {
+      cancelRef.current();
+    }
+
     setLoading(true);
     setError(null);
     setProfile(null);
     setCacheInfo(null);
+    setProgress({ percent: 0, message: 'Initialisation...', step: 'init' });
 
-    try {
-      const result = await searchPerson(
-        formData.firstName,
-        formData.lastName,
-        formData.company,
-        formData.forceRefresh
-      );
-
-      if (result.success) {
-        setProfile(result.data);
-        setCacheInfo({
-          cached: result.cached || false,
-          cacheAge: result.cache_age_seconds,
-          cacheCreatedAt: result.cache_created_at
-        });
-      } else {
-        setError(result.message || 'Une erreur est survenue');
+    // Utiliser le streaming pour avoir la progression
+    cancelRef.current = searchPersonStream(
+      formData.firstName,
+      formData.lastName,
+      formData.company,
+      formData.forceRefresh,
+      // onProgress
+      (percent, message, step) => {
+        setProgress({ percent, message, step });
+      },
+      // onComplete
+      (result) => {
+        if (result.success) {
+          setProfile(result.data);
+          setCacheInfo({
+            cached: result.cached || false,
+            cacheAge: result.cache_age_seconds,
+          });
+          setProgress({ percent: 100, message: 'Terminé !', step: 'done' });
+        }
+        setLoading(false);
+        cancelRef.current = null;
+      },
+      // onError
+      (errorMsg) => {
+        setError(errorMsg || 'Une erreur est survenue');
+        setLoading(false);
+        cancelRef.current = null;
       }
-    } catch (err) {
-      setError(err.message || 'Impossible de contacter le serveur');
-    } finally {
+    );
+  };
+
+  const handleCancel = () => {
+    if (cancelRef.current) {
+      cancelRef.current();
+      cancelRef.current = null;
       setLoading(false);
+      setProgress({ percent: 0, message: '', step: '' });
     }
   };
 
@@ -120,11 +144,102 @@ function App() {
               {loading && (
                 <div className="animate-slideInRight">
                   <div className="bg-white rounded-lg shadow-md p-8">
-                    <div className="flex flex-col items-center justify-center space-y-4">
-                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-                      <p className="text-gray-600 text-center text-sm">
-                        Analyse en cours... Nous collectons et analysons les informations disponibles.
-                      </p>
+                    <div className="flex flex-col space-y-6">
+                      {/* En-tête progression */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900">Analyse en cours</h3>
+                            <p className="text-sm text-gray-500">{progress.message}</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={handleCancel}
+                          className="text-sm text-gray-500 hover:text-red-600 transition-colors"
+                        >
+                          Annuler
+                        </button>
+                      </div>
+
+                      {/* Barre de progression */}
+                      <div className="w-full">
+                        <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
+                          <span className="font-medium">{progress.percent}%</span>
+                          <span className="text-xs text-gray-400">~2-3 minutes</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                          <div
+                            className="bg-gradient-to-r from-primary-500 to-primary-600 h-3 rounded-full transition-all duration-500 ease-out"
+                            style={{ width: `${progress.percent}%` }}
+                          ></div>
+                        </div>
+                      </div>
+
+                      {/* Étapes de progression */}
+                      <div className="space-y-2 text-sm">
+                        <div className={`flex items-center space-x-2 ${progress.step === 'cache' || progress.step === 'cache_hit' ? 'text-primary-600 font-medium' : progress.percent > 5 ? 'text-green-600' : 'text-gray-400'}`}>
+                          {progress.percent > 5 ? (
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                          ) : (
+                            <div className="w-5 h-5 rounded-full border-2 border-current"></div>
+                          )}
+                          <span>Vérification du cache</span>
+                        </div>
+
+                        <div className={`flex items-center space-x-2 ${progress.step === 'pappers' ? 'text-primary-600 font-medium' : progress.percent > 20 ? 'text-green-600' : 'text-gray-400'}`}>
+                          {progress.percent > 20 ? (
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                          ) : (
+                            <div className="w-5 h-5 rounded-full border-2 border-current"></div>
+                          )}
+                          <span>Données légales (Pappers)</span>
+                        </div>
+
+                        <div className={`flex items-center space-x-2 ${progress.step === 'serper' ? 'text-primary-600 font-medium' : progress.percent > 30 ? 'text-green-600' : 'text-gray-400'}`}>
+                          {progress.percent > 30 ? (
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                          ) : (
+                            <div className="w-5 h-5 rounded-full border-2 border-current"></div>
+                          )}
+                          <span>Recherche Google (30+ URLs)</span>
+                        </div>
+
+                        <div className={`flex items-center space-x-2 ${progress.step === 'firecrawl' || progress.step === 'scraped' ? 'text-primary-600 font-medium' : progress.percent > 70 ? 'text-green-600' : 'text-gray-400'}`}>
+                          {progress.percent > 70 ? (
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                          ) : (
+                            <div className="w-5 h-5 rounded-full border-2 border-current"></div>
+                          )}
+                          <span>Scraping des pages (15 scrapes)</span>
+                        </div>
+
+                        <div className={`flex items-center space-x-2 ${progress.step === 'llm' ? 'text-primary-600 font-medium' : progress.percent > 95 ? 'text-green-600' : 'text-gray-400'}`}>
+                          {progress.percent > 95 ? (
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                          ) : (
+                            <div className="w-5 h-5 rounded-full border-2 border-current"></div>
+                          )}
+                          <span>Analyse IA (GPT-4o)</span>
+                        </div>
+                      </div>
+
+                      {/* Info temps estimé */}
+                      <div className="pt-4 border-t border-gray-100">
+                        <p className="text-xs text-gray-500 text-center">
+                          💡 L'analyse v3 enrichie collecte et analyse 3x plus de données que la v2
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
