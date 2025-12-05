@@ -59,7 +59,7 @@ TOUTES les valeurs textuelles DOIVENT être EN FRANÇAIS (sauf URLs, emails, nom
         "siren": "SIREN si disponible",
         "status": "Actif" | "Radié" | "En procédure collective",
         "financial_health": "Synthèse santé financière",
-        "since": "Date de prise de poste",
+        "since": "ATTENTION: MAX 2024 ! JAMAIS 2025 ou plus. Format: '2024' ou '2023' etc. Si source dit 2025, corriger à 2024",
         "revenue": "CA si disponible",
         "employees": "Effectif si disponible"
       }
@@ -73,9 +73,12 @@ TOUTES les valeurs textuelles DOIVENT être EN FRANÇAIS (sauf URLs, emails, nom
 
   "financial_intelligence": {
     "revenue_evolution": "Évolution du CA des entreprises dirigées (croissance, stagnation, déclin)",
+    "revenue_evolution_source": "OBLIGATOIRE si revenue_evolution rempli ! Format: 'Pappers - Bilan 2022' ou 'Pappers - Aucun bilan' si pas de données",
     "financial_stability": "Analyse stabilité financière globale",
+    "financial_stability_source": "OBLIGATOIRE si financial_stability rempli ! Format: 'Pappers - Résultat 2022' ou 'Impossible à évaluer - Entreprise trop récente'",
     "investment_capacity": "Capacité d'investissement estimée (Faible/Moyenne/Élevée)",
     "capital_structure": "Structure du capital : autofinancé, endetté, levées de fonds ?",
+    "capital_structure_source": "OBLIGATOIRE si capital_structure rempli ! Format: 'Pappers - Capital social 2024'",
     "financial_red_flags": ["Red flags financiers spécifiques si détectés"]
   },
 
@@ -92,7 +95,7 @@ TOUTES les valeurs textuelles DOIVENT être EN FRANÇAIS (sauf URLs, emails, nom
 
   "career_timeline": [
     {
-      "year": 2020,
+      "year": "ATTENTION: Année MAX 2024 ! Exemple: 2020, 2021, 2022, 2023, 2024. JAMAIS 2025 ou plus !",
       "event": "Description de l'événement majeur",
       "type": "Création entreprise" | "Nomination" | "Levée de fonds" | "Acquisition" | "Publication" | "Prix/Distinction" | "Autre",
       "impact": "Impact sur carrière/entreprise"
@@ -135,14 +138,18 @@ TOUTES les valeurs textuelles DOIVENT être EN FRANÇAIS (sauf URLs, emails, nom
 
   "psychology_and_approach": {
     "personality_traits": [
-      "Traits de personnalité déduits (visionnaire, pragmatique, innovant, conservateur, etc.)"
+      "ATTENTION: JAMAIS de traits seuls comme 'Innovant' ou 'Visionnaire' !",
+      "FORMAT STRICT: 'Trait (justification factuelle avec date/source)'",
+      "EXEMPLE VALIDE: 'Pragmatique (a coupé 30% des coûts en 2022 selon bilan Pappers)'",
+      "EXEMPLE VALIDE: 'Visionnaire (a investi dans l'IA dès 2019, avant la tendance générale)'",
+      "Si AUCUNE action concrète détectée: LAISSER VIDE []"
     ],
     "interests_and_hobbies": [
       "Centres d'intérêt identifiés (sport, culture, tech, etc.)"
     ],
     "communication_style": "Formel" | "Détendu" | "Technique" | "Commercial" | "Pédagogique",
-    "values_and_beliefs": "Valeurs affichées (RSE, innovation, tradition, etc.)",
-    "decision_making_style": "Style de décision déduit (analytique, intuitif, collaboratif, autoritaire)",
+    "values_and_beliefs": "Valeurs affichées avec EXEMPLES CONCRETS (actions RSE, déclarations publiques, choix stratégiques documentés)",
+    "decision_making_style": "Style avec JUSTIFICATION FACTUELLE ou 'Non déterminable - Données insuffisantes'",
     "ice_breakers": [
       "3-5 suggestions TRÈS CONCRÈTES pour engager la conversation basées sur actualités récentes, publications, centres d'intérêt"
     ]
@@ -273,28 +280,41 @@ TOUTES les valeurs textuelles DOIVENT être EN FRANÇAIS (sauf URLs, emails, nom
    - CRITIQUE: Un faux positif PPE peut bloquer une relation commerciale injustement
 
 8ter. **VALIDATION TIMELINE - RÈGLE CRITIQUE:**
-   - TOUTES les dates (year, since, period, date) doivent être <= 2024 (année actuelle)
-   - Si date > 2024 : NE PAS l'utiliser, créer red_flag "Timeline incohérente" severity "Critique"
+   - NOUS SOMMES EN DÉCEMBRE 2024 (mois 12, année 2024)
+   - TOUTES les dates (year, since, period, date) doivent être <= 2024
+   - INTERDIT ABSOLU : year: 2025, since: "2025", period: "2025-présent"
+   - Si source dit "2025" : CORRIGER à 2024 (erreur de source ou anticipation)
+   - Si date > 2024 : créer red_flag "Timeline incohérente - Date future détectée" severity "Critique"
    - Vérifier cohérence chronologique : date fin > date début, pas de chevauchements impossibles
    - career_timeline : trier par year croissant, détecter trous > 2 ans
    - professional_experience : vérifier period logique ("2020-2023" OK, "2025-2026" INTERDIT)
+   - business_ecosystem.companies_led.since : MAX 2024, jamais 2025
    - Si incohérence détectée : noter dans coherence_analysis.timeline_verification avec détails
-   - CRITIQUE: Une date future (ex: 2025) indique données non fiables ou hallucination
+   - CRITIQUE: Une date future = hallucination ou erreur source, toujours corriger à 2024 max
 
 8quater. **EXPLOITATION DONNÉES PAPPERS - RÈGLE OBLIGATOIRE:**
    - Si pappers_data fourni : EXTRAIRE systématiquement CA, résultat, effectif, date_creation
    - financial_intelligence.revenue_evolution : calculer croissance % si plusieurs années disponibles
+   - financial_intelligence.revenue_evolution_source : OBLIGATOIRE si revenue_evolution rempli (ex: "Pappers - Bilans 2021-2022")
    - financial_intelligence.financial_stability : analyser résultat net (positif/négatif/tendance)
+   - financial_intelligence.financial_stability_source : OBLIGATOIRE si financial_stability rempli (ex: "Pappers - Résultat 2022")
+   - financial_intelligence.capital_structure_source : OBLIGATOIRE si capital_structure rempli (ex: "Pappers - Capital social")
+   - Si champ financial rempli SANS source → ERREUR CRITIQUE
    - business_ecosystem.companies_led : remplir revenue et employees OBLIGATOIREMENT si dans Pappers
    - business_ecosystem.business_longevity : calculer ancienneté = 2024 - année création
    - Si donnée Pappers manquante dans JSON final : ERREUR, revérifier extraction
    - CRITIQUE: Pappers = source payante premium, NE PAS gaspiller ces données
 
-9. **PSYCHOLOGY & APPROACH ENRICHI:**
-   - Analyse TON communications (LinkedIn, Twitter, articles, interviews)
-   - Identifie VALEURS affichées (RSE, innovation, tradition)
-   - Déduis STYLE DE DÉCISION (analytique, intuitif, collaboratif)
-   - Ice_breakers ULTRA CONCRETS basés sur actualités RÉCENTES
+9. **PSYCHOLOGY & APPROACH ENRICHI - RÈGLE ANTI-HALLUCINATION STRICTE:**
+   - personality_traits : INTERDIT de mettre des traits seuls ("Innovant", "Visionnaire")
+   - Format OBLIGATOIRE: "Trait (justification précise avec action/fait)"
+   - Exemples VALIDES: "Pragmatique (a coupé 30% des coûts en 2022 selon Les Échos)", "Visionnaire (a investi dans l'IA dès 2019 avant la tendance)"
+   - Exemples INTERDITS: "Innovant", "Dynamique", "Motivé", "Passionné" (effet Barnum)
+   - Si AUCUN fait comportemental concret : personality_traits = []
+   - decision_making_style : DOIT être justifié par exemple concret ou "Non déterminable"
+   - values_and_beliefs : DOIT citer exemples factuels (actions RSE, déclarations, choix stratégiques)
+   - Ice_breakers : ULTRA CONCRETS avec dates/événements (ex: "Discuter de son article sur l'IA du 15/11/2024")
+   - CRITIQUE: Un trait sans justification = hallucination = ERREUR GRAVE
 
 10. **COHERENCE ANALYSIS RENFORCÉ:**
     - Compare dates LinkedIn vs Pappers vs Presse PRÉCISÉMENT
@@ -310,9 +330,11 @@ TOUTES les valeurs textuelles DOIVENT être EN FRANÇAIS (sauf URLs, emails, nom
     - Ex: "Demander garanties bancaires (CA en baisse)"
     - Ex: "Opportunité forte (momentum positif, levée récente)"
 
-12. **FORMAT:**
+12. **FORMAT ET TRAÇABILITÉ:**
     - TOUT en français (sauf clés JSON et URLs)
-    - FACTUEL et SOURCÉ
+    - FACTUEL et SOURCÉ (chaque affirmation critique = source citée)
+    - Pour financial_intelligence : remplir OBLIGATOIREMENT les champs *_source avec source précise
+    - Format source: "Nom_source - Type_document Date" (ex: "Pappers - Bilan 2022", "Les Échos - 15/03/2023")
     - QUANTIFIÉ quand possible (scores, pourcentages, montants)
     - Si info manquante : null ou []
     - Retourne UNIQUEMENT le JSON, sans commentaire

@@ -1,15 +1,17 @@
 # LumironScraper Frontend
 
-Interface React pour LumironScraper - Scraping et analyse intelligente de profils professionnels.
+Interface React pour Due Diligence OSINT - Analyse complète de profils professionnels avec données officielles.
 
 ## 🎯 Fonctionnalités
 
+- **Due Diligence v3** - 18 sections organisées en 6 onglets (Vue d'ensemble, Expérience, Financier, Médias, Réseau, Analyse)
+- **Progression temps réel** - Suivi SSE avec 6 étapes visuelles (~2-3min)
+- **Scores visuels** - Crédibilité, réputation, influence, fiabilité (/100)
+- **Red flags** - Alertes avec badges de sévérité (Critique/Modéré/Mineur)
+- **Traçabilité** - Sources affichées pour chaque donnée financière
+- **Timeline** - Visualisation chronologique de la carrière
 - **Layout dynamique** - Formulaire centré par défaut, se déplace à gauche quand résultats affichés
 - **Animations fluides** - Slide-in depuis la droite pour les résultats
-- **Recherche intuitive** - Formulaire simple (prénom, nom, entreprise)
-- **Force refresh** - Checkbox pour ignorer le cache
-- **Indicateur cache** - Badge vert (cache) ou bleu (frais) avec âge en minutes
-- **Affichage structuré** - Profil professionnel formaté et lisible
 - **Responsive design** - Layout côte à côte (desktop), empilé (mobile)
 - **Tailwind CSS** - Interface moderne et performante
 
@@ -73,14 +75,14 @@ Les fichiers buildés seront dans `dist/`.
 ```
 frontend/
 ├── src/
-│   ├── App.jsx              # Composant principal + layout dynamique
+│   ├── App.jsx              # Composant principal + layout + SSE progress
 │   ├── main.jsx             # Point d'entrée
 │   ├── index.css            # Styles globaux + animations custom
 │   ├── components/
 │   │   ├── SearchForm.jsx   # Formulaire + force refresh
-│   │   └── ProfileResults.jsx  # Affichage du profil
+│   │   └── ProfileResults.jsx  # 6 onglets + 18 sections v3
 │   └── services/
-│       └── api.js           # Client API Axios
+│       └── api.js           # Client API (searchPersonStream + SSE)
 ├── public/                  # Assets statiques
 ├── nginx.conf               # Config Nginx pour Docker
 ├── Dockerfile               # Build multi-stage
@@ -92,39 +94,56 @@ frontend/
 
 ## 🔌 Intégration Backend
 
-### API Endpoint utilisé
+### API Endpoint principal (SSE)
 
 ```javascript
-POST /api/v1/search
+POST /api/v1/search-stream
 Content-Type: application/json
 
 {
-  "first_name": "Satya",
-  "last_name": "Nadella",
-  "company": "Microsoft",
-  "force_refresh": false // Optionnel
+  "first_name": "Anthony",
+  "last_name": "Tartour",
+  "company": "Lumiron",
+  "force_refresh": false
 }
 ```
 
-### Réponse attendue
+### Progression temps réel (SSE)
+
+```javascript
+// 6 étapes de progression
+data: {"type":"progress","step":"cache","percent":5,"message":"Vérification du cache..."}
+data: {"type":"progress","step":"pappers","percent":15,"message":"Récupération données Pappers..."}
+data: {"type":"progress","step":"dvf","percent":25,"message":"Recherche DVF (immobilier)..."}
+data: {"type":"progress","step":"hatvp","percent":35,"message":"Vérification HATVP (PPE)..."}
+data: {"type":"progress","step":"scraping","percent":50,"message":"Scraping des pages (15 scrapes, ~2min)..."}
+data: {"type":"progress","step":"analysis","percent":85,"message":"Analyse GPT-4o (enrichissement)..."}
+data: {"type":"complete","data":{...}}
+```
+
+### Réponse finale (v3 - 18 sections)
 
 ```json
 {
   "success": true,
-  "cached": true,                    // ← Indicateur cache
-  "cache_age_seconds": 3600,         // ← Âge du cache
-  "cache_created_at": "2025-12-04T10:00:00",
+  "cached": false,
   "data": {
-    "full_name": "Satya Nadella",
-    "current_position": "Directeur Général",
-    "company": "Microsoft",
+    "full_name": "Anthony Tartour",
+    "current_position": "Co-Founder",
+    "company": "Lumiron",
+    "credibility_score": 75,
+    "reputation_score": 80,
+    "influence_score": 65,
+    "reliability_score": 70,
+    "risk_level": "Moyen",
     "professional_experience": [...],
-    "skills": [...],
-    "publications": [...],
-    "public_contact": {...},
-    "summary": "...",
-    "linkedin_url": "...",
-    "sources": [...]
+    "business_ecosystem": {...},
+    "financial_intelligence": {...},
+    "psychology_and_approach": {...},
+    "media_presence": {...},
+    "red_flags": [...],
+    "career_timeline": [...],
+    // + 12 autres sections
   }
 }
 ```
@@ -139,22 +158,42 @@ Formulaire de recherche avec :
 - Validation : tous les champs requis
 - États : loading, disabled
 
-### ProfileResults
+### ProfileResults (v3)
 
-Affichage du profil avec sections :
-- **En-tête** - Nom + poste actuel
-- **Résumé** - Bio courte
-- **Expérience** - Parcours professionnel
-- **Compétences** - Tags
-- **Publications** - Liste
-- **Contact** - Email, téléphone, LinkedIn
-- **Sources** - URLs utilisées (collapsible)
+**6 onglets organisés :**
 
-### Indicateur Cache
+1. **Vue d'ensemble** 📊
+   - Header avec scores (crédibilité, réputation, influence, fiabilité)
+   - Badge niveau de risque (Faible/Moyen/Élevé)
+   - Résumé exécutif + recommandations
+   - Red flags avec badges de sévérité
 
-Badge affiché au-dessus du profil :
-- **Vert** - Données du cache (avec âge en minutes)
-- **Bleu** - Données fraîches (nouvellement scrapées)
+2. **Expérience** 💼
+   - Parcours professionnel détaillé
+   - Timeline visuelle chronologique
+   - Formations et certifications
+
+3. **Financier** 💰
+   - Intelligence financière avec sources
+   - Écosystème d'affaires (entreprises dirigées, mandats)
+   - Patrimoine immobilier (DVF)
+   - PPE détecté (HATVP)
+
+4. **Médias & Réputation** 📰
+   - Présence médiatique avec sentiment (Positif/Neutre/Négatif)
+   - Publications et articles
+   - Influence réseau professionnel
+
+5. **Réseau & Influence** 🤝
+   - Réseau professionnel
+   - Indicateurs d'influence
+   - Connexions clés
+
+6. **Analyse** 🔍
+   - Psychologie et approche (traits justifiés)
+   - Ice breakers concrets
+   - Analyse de cohérence
+   - Données brutes (collapsible)
 
 ## 🚢 Déploiement
 

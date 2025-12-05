@@ -36,9 +36,12 @@ class BusinessEcosystem(BaseModel):
 # ========== FINANCIAL INTELLIGENCE (NEW) ==========
 class FinancialIntelligence(BaseModel):
     revenue_evolution: Optional[str] = None
+    revenue_evolution_source: Optional[str] = None
     financial_stability: Optional[str] = None
+    financial_stability_source: Optional[str] = None
     investment_capacity: Optional[str] = None
     capital_structure: Optional[str] = None
+    capital_structure_source: Optional[str] = None
     financial_red_flags: List[str] = []
 
 # ========== PROFESSIONAL EXPERIENCE ==========
