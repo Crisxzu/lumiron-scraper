@@ -40,7 +40,10 @@ class ProfileService:
                 first_name,
                 last_name,
                 company,
-                scraped_content_list
+                scraped_content_list,
+                scraped_data.get("pappers_data"),
+                scraped_data.get("dvf_data"),
+                scraped_data.get("hatvp_data")
             )
 
             profile_data["sources"] = scraped_data.get("sources", [])

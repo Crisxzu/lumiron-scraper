@@ -1,8 +1,10 @@
 import os
+import time
+import requests
 from typing import List, Dict, Optional
 from firecrawl import Firecrawl
 from app.sources import get_all_sources
-from app.utils.url_validator import filter_accessible_urls
+from app.utils.url_validator import filter_accessible_urls, get_realistic_headers
 
 class ScraperService:
     def __init__(self):
@@ -13,6 +15,11 @@ class ScraperService:
                 self.firecrawl = Firecrawl(api_key=self.firecrawl_api_key)
             except Exception as e:
                 print(f"Warning: Firecrawl initialization failed: {e}")
+
+        # ScraperAPI fallback (optional)
+        self.scraperapi_key = os.getenv('SCRAPERAPI_KEY')
+        if self.scraperapi_key:
+            print(f"[ScraperAPI] ✓ Enabled as fallback for blocked URLs")
 
         self.sources = get_all_sources()
         print(f"Loaded {len(self.sources)} source modules: {[s.get_name() for s in self.sources]}")
@@ -32,7 +39,43 @@ class ScraperService:
 
         return urls_by_source
 
-    def scrape_with_firecrawl(self, url: str) -> Optional[Dict]:
+    def scrape_with_scraperapi(self, url: str) -> Optional[str]:
+        """
+        Fallback scraper using ScraperAPI for sites that block Firecrawl
+        ScraperAPI bypasses anti-bot protection (Cloudflare, Datadome, etc.)
+        """
+        if not self.scraperapi_key:
+            return None
+
+        try:
+            print(f"[ScraperAPI] Attempting fallback scraping: {url}")
+
+            # ScraperAPI endpoint
+            api_url = "https://api.scraperapi.com"
+            params = {
+                'api_key': self.scraperapi_key,
+                'url': url,
+                'render': 'false',  # false = plus rapide, true = JS rendering
+            }
+
+            response = requests.get(api_url, params=params, timeout=30)
+
+            if response.status_code == 200:
+                content = response.text
+                print(f"[ScraperAPI] ✓ Success: {len(content)} chars")
+                return content
+            else:
+                print(f"[ScraperAPI] ✗ Error {response.status_code}")
+                return None
+
+        except Exception as e:
+            print(f"[ScraperAPI] ✗ Exception: {str(e)}")
+            return None
+
+    def scrape_with_firecrawl(self, url: str, use_fallback: bool = True) -> Optional[Dict]:
+        """
+        Scrape avec Firecrawl, fallback vers ScraperAPI si 403/blocked
+        """
         if not self.firecrawl:
             raise ValueError("Firecrawl API key not configured")
 
@@ -48,10 +91,40 @@ class ScraperService:
                 return result
             else:
                 print(f"[Firecrawl] ✗ Empty result")
+
+                # Fallback vers ScraperAPI si disponible
+                if use_fallback and self.scraperapi_key:
+                    print(f"[Fallback] Trying ScraperAPI for {url}")
+                    scraperapi_content = self.scrape_with_scraperapi(url)
+                    if scraperapi_content:
+                        # Convertir en format compatible Firecrawl
+                        return type('obj', (object,), {
+                            'markdown': scraperapi_content[:10000],  # Limiter à 10k chars
+                            'html': None
+                        })
+
                 return None
 
         except Exception as e:
+            error_msg = str(e).lower()
             print(f"[Firecrawl] ✗ Error: {str(e)}")
+
+            # Si rate limit exceeded, extraire le délai et retourner None (sera géré par la boucle)
+            if 'rate limit' in error_msg:
+                # On ne retry pas ici, on laisse la boucle gérer avec le délai global
+                print(f"[Firecrawl] ⚠ Rate limit hit, will be handled by rate limiting logic")
+                return None
+
+            # Si erreur 403/blocked, essayer ScraperAPI
+            if use_fallback and self.scraperapi_key and ('403' in error_msg or 'forbidden' in error_msg or 'blocked' in error_msg):
+                print(f"[Fallback] Firecrawl blocked (403), trying ScraperAPI")
+                scraperapi_content = self.scrape_with_scraperapi(url)
+                if scraperapi_content:
+                    return type('obj', (object,), {
+                        'markdown': scraperapi_content[:10000],
+                        'html': None
+                    })
+
             return None
 
     def scrape_person_data(self, first_name: str, last_name: str, company: str) -> Dict[str, any]:
@@ -70,7 +143,7 @@ class ScraperService:
                 url_to_source[url] = source_name
 
         print(f"\n=== URL Validation ===")
-        accessible_urls = filter_accessible_urls(all_urls, timeout=3, max_concurrent=20)
+        accessible_urls = filter_accessible_urls(all_urls, timeout=3, max_concurrent=50)
 
         if not accessible_urls:
             raise Exception(
@@ -83,11 +156,29 @@ class ScraperService:
             )
 
         linkedin_data = None
+        pappers_data = None
+        dvf_data = None
+        hatvp_data = None
+
         for source in self.sources:
             if hasattr(source, 'linkedin_cache') and source.linkedin_cache:
                 linkedin_data = source.linkedin_cache
                 print(f"[LinkedIn] ✓ Using cached LinkedIn data: {linkedin_data['urls']}")
-                break
+
+            if hasattr(source, 'get_cached_data'):
+                cached = source.get_cached_data()
+                if cached:
+                    source_name = source.get_name()
+                    if source_name == 'pappers_legal':
+                        pappers_data = cached
+                        print(f"[Pappers] ✓ Legal data collected for {cached.get('full_name')}")
+                    elif source_name == 'dvf_immobilier':
+                        dvf_data = cached
+                        print(f"[DVF] ✓ Real estate data collected: {cached.get('count')} mention(s)")
+                    elif source_name == 'hatvp_ppe':
+                        hatvp_data = cached
+                        ppe_status = "DETECTED ⚠" if cached.get('ppe_detected') else "Not detected"
+                        print(f"[HATVP] ✓ PPE status: {ppe_status}")
 
         collected_data = {
             "urls_by_source": urls_by_source,
@@ -95,6 +186,9 @@ class ScraperService:
             "scraped_content": [],
             "sources": [],
             "linkedin_data": linkedin_data,
+            "pappers_data": pappers_data,
+            "dvf_data": dvf_data,
+            "hatvp_data": hatvp_data,
             "stats": {
                 "total_urls_generated": len(all_urls),
                 "accessible": len(accessible_urls),
@@ -106,11 +200,25 @@ class ScraperService:
 
         max_total_scrapes = int(os.getenv("MAX_TOTAL_SCRAPES", '3'))  # Maximum 3 scrapes
 
-        successful_scrapes = 0
+        # Firecrawl rate limit: 10 req/min (Free tier)
+        # Pour être safe: 1 requête toutes les 6 secondes
+        rate_limit_delay = 6.5  # secondes entre chaque scrape
 
-        for url in accessible_urls[:max_total_scrapes]:
+        successful_scrapes = 0
+        scrape_start_time = time.time()
+
+        for idx, url in enumerate(accessible_urls[:max_total_scrapes]):
             if successful_scrapes >= max_total_scrapes:
                 break
+
+            # Rate limiting: attendre entre chaque scrape (sauf le premier)
+            if idx > 0:
+                elapsed = time.time() - scrape_start_time
+                expected_time = idx * rate_limit_delay
+                if elapsed < expected_time:
+                    wait_time = expected_time - elapsed
+                    print(f"[Rate Limit] Waiting {wait_time:.1f}s before next scrape ({idx+1}/{min(len(accessible_urls), max_total_scrapes)})...")
+                    time.sleep(wait_time)
 
             collected_data["stats"]["attempted"] += 1
 
