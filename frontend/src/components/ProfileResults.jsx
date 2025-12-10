@@ -378,6 +378,64 @@ const ProfileResults = ({ profile }) => {
                   )}
                 </div>
               )}
+
+              {profile.pappers_deep_analysis && (
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-800 my-4">Analyse Approfondie (Pappers)</h3>
+                  <div className="bg-gray-100 p-6 rounded-lg space-y-4">
+                    {profile.pappers_deep_analysis.credibility_indicators && (
+                      <div>
+                        <h4 className="font-medium text-gray-800 mb-2">Indicateurs de Crédibilité</h4>
+                        <p className="text-sm text-gray-700">{profile.pappers_deep_analysis.credibility_indicators}</p>
+                      </div>
+                    )}
+
+                    {profile.pappers_deep_analysis.mandate_history && profile.pappers_deep_analysis.mandate_history.length > 0 && (
+                      <div>
+                        <h4 className="font-medium text-gray-800 mb-2">Historique des Mandats</h4>
+                        <div className="space-y-2">
+                          {profile.pappers_deep_analysis.mandate_history.map((mandate, idx) => (
+                            <div key={idx} className="bg-white p-3 rounded-md border">
+                              <p className="font-semibold">{mandate.company}</p>
+                              <p className="text-sm text-gray-600">{mandate.role} (de {mandate.since} à {mandate.until || 'aujourd\'hui'})</p>
+                              <span className={`text-xs px-2 py-1 mt-1 inline-block rounded ${mandate.status === 'Actif' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{mandate.status}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {profile.pappers_deep_analysis.financial_history && profile.pappers_deep_analysis.financial_history.length > 0 && (
+                      <div>
+                        <h4 className="font-medium text-gray-800 mb-2">Historique Financier</h4>
+                        {/* Implémentation de l'affichage à prévoir */}
+                      </div>
+                    )}
+
+                    {profile.pappers_deep_analysis.legal_issues && profile.pappers_deep_analysis.legal_issues.length > 0 && (
+                      <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                        <h4 className="font-medium text-yellow-800 mb-2">Problèmes Légaux</h4>
+                        <ul className="space-y-1 list-disc list-inside">
+                          {profile.pappers_deep_analysis.legal_issues.map((issue, idx) => (
+                            <li key={idx} className="text-sm text-gray-700">{issue}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {profile.pappers_deep_analysis.bodacc_complete && profile.pappers_deep_analysis.bodacc_complete.length > 0 && (
+                      <div>
+                        <h4 className="font-medium text-gray-800 mb-2">Publications BODACC complètes</h4>
+                        <ul className="space-y-1 list-disc list-inside">
+                          {profile.pappers_deep_analysis.bodacc_complete.map((item, idx) => (
+                            <li key={idx} className="text-sm text-gray-700">{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -436,6 +494,68 @@ const ProfileResults = ({ profile }) => {
                     </div>
                   )}
                 </>
+              )}
+
+              {/* LinkedIn Activity Analysis */}
+              {profile.linkedin_activity_analysis && (
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-800 mb-4">🎤 Activité LinkedIn</h3>
+                  <div className="bg-gray-50 p-6 rounded-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <h4 className="font-medium text-gray-700 mb-2">Statistiques</h4>
+                        <p className="text-sm text-gray-700">Posts analysés: {profile.linkedin_activity_analysis.posts_analyzed}</p>
+                        {profile.linkedin_activity_analysis.expertise_level && <p className="text-sm text-gray-700">Niveau d'expertise: {profile.linkedin_activity_analysis.expertise_level}</p>}
+                        {profile.linkedin_activity_analysis.thought_leadership_score && <p className="text-sm text-gray-700">Score de leadership: {profile.linkedin_activity_analysis.thought_leadership_score}/100</p>}
+                      </div>
+                      {profile.linkedin_activity_analysis.recurring_themes && profile.linkedin_activity_analysis.recurring_themes.length > 0 && (
+                        <div>
+                          <h4 className="font-medium text-gray-700 mb-2">Thèmes récurrents</h4>
+                          <div className="flex flex-wrap gap-2">
+                            {profile.linkedin_activity_analysis.recurring_themes.map((theme, idx) => (
+                              <span key={idx} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                                {theme}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    {profile.linkedin_activity_analysis.professional_reputation_assessment && (
+                      <div className="mt-4">
+                        <h4 className="font-medium text-gray-700 mb-2">Réputation professionnelle</h4>
+                        <p className="text-sm text-gray-700">{profile.linkedin_activity_analysis.professional_reputation_assessment}</p>
+                      </div>
+                    )}
+                    {profile.linkedin_activity_analysis.recent_posts && profile.linkedin_activity_analysis.recent_posts.length > 0 && (
+                      <div className="mt-6">
+                        <h4 className="font-medium text-gray-700 mb-2">Posts récents</h4>
+                        <div className="space-y-4">
+                          {profile.linkedin_activity_analysis.recent_posts.map((post, idx) => (
+                            <div key={idx} className="border border-gray-200 bg-white rounded-lg p-4">
+                              <p className="text-sm text-gray-700">{post.content_summary}</p>
+                              {post.date && <p className="text-xs text-gray-500 mt-2">{post.date}</p>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {profile.linkedin_activity_analysis.linkedin_urls_analyzed && profile.linkedin_activity_analysis.linkedin_urls_analyzed.length > 0 && (
+                      <div className="mt-6">
+                        <h4 className="font-medium text-gray-700 mb-2">URLs LinkedIn Analysées</h4>
+                        <ul className="space-y-2">
+                          {profile.linkedin_activity_analysis.linkedin_urls_analyzed.map((url, idx) => (
+                            <li key={idx} className="text-sm">
+                              <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline break-all">
+                                {url}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
 
               {profile.competitive_intelligence && (

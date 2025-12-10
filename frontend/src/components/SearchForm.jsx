@@ -32,25 +32,8 @@ const SearchForm = ({ onSubmit, loading }) => {
 
         <div className="space-y-5">
           <div>
-            <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
-              Nom
-            </label>
-            <input
-              type="text"
-              id="lastName"
-              name="lastName"
-              value={formData.lastName}
-              onChange={handleChange}
-              disabled={loading}
-              placeholder="Dupont"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed transition-all"
-              required
-            />
-          </div>
-          
-          <div>
             <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
-              Prénom
+              Nom
             </label>
             <input
               type="text"
@@ -60,6 +43,23 @@ const SearchForm = ({ onSubmit, loading }) => {
               onChange={handleChange}
               disabled={loading}
               placeholder="Jean"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed transition-all"
+              required
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
+              Prénom
+            </label>
+            <input
+              type="text"
+              id="lastName"
+              name="lastName"
+              value={formData.lastName}
+              onChange={handleChange}
+              disabled={loading}
+              placeholder="Dupont"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed transition-all"
               required
             />
