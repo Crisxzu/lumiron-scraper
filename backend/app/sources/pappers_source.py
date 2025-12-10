@@ -264,10 +264,18 @@ class PappersSource(BaseSource):
             }
 
             print(f"[Pappers] Fetching details for SIREN {siren} (~{1 + credits_cost} credits)")
+            print(f"[Pappers] Champs demandés: {', '.join(champs_supplementaires)}")
 
             response = requests.get(url, params=params, headers=headers, timeout=10)
             response.raise_for_status()
             data = response.json()
+
+            # Debug: vérifier quels champs sont vraiment dans la réponse
+            champs_recus = [k for k in ['entreprises_dirigees', 'observations', 'decisions', 'parcelles_detenues'] if k in data]
+            if champs_recus:
+                print(f"[Pappers] Champs premium reçus: {', '.join(champs_recus)}")
+            else:
+                print(f"[Pappers] ⚠ Aucun champ premium reçu (demandés: {', '.join(champs_supplementaires)})")
 
             # Extraire les données pertinentes pour la due diligence
             economic_info = {
@@ -305,6 +313,26 @@ class PappersSource(BaseSource):
                 # Métadonnées
                 'derniere_mise_a_jour': data.get('derniere_mise_a_jour'),
             }
+
+            # v3.1: Ajouter champs premium si demandés
+            if self.include_entreprises_dirigees and 'entreprises_dirigees' in data:
+                economic_info['entreprises_dirigees'] = data.get('entreprises_dirigees', [])
+                print(f"[Pappers] ✓ Entreprises dirigées: {len(data.get('entreprises_dirigees', []))} found")
+
+            if self.include_observations and 'observations' in data:
+                economic_info['observations'] = data.get('observations', [])
+                print(f"[Pappers] ✓ Observations RCS: {len(data.get('observations', []))} found")
+
+            if self.include_decisions and 'decisions' in data:
+                economic_info['decisions'] = data.get('decisions', [])
+                print(f"[Pappers] ✓ Décisions de justice: {len(data.get('decisions', []))} found")
+
+            if self.include_parcelles and 'parcelles_detenues' in data:
+                parcelles_data = data.get('parcelles_detenues', {})
+                economic_info['parcelles_detenues'] = parcelles_data
+                # Compter les vraies parcelles (resultats[])
+                nb_parcelles = len(parcelles_data.get('resultats', [])) if isinstance(parcelles_data, dict) else len(parcelles_data)
+                print(f"[Pappers] ✓ Parcelles cadastrales: {nb_parcelles} found")
 
             return economic_info
 

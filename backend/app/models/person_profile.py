@@ -117,6 +117,9 @@ class CoherenceAnalysis(BaseModel):
     cross_source_validation: Optional[str] = None
     discrepancies: Optional[List[str]] = None
     reliability_score: Optional[int] = Field(ge=0, le=100, default=None)
+    reliability_justification: Optional[str] = Field(
+        description="Justification détaillée du score (3-6 lignes) basée sur cohérence, sources, vérifiabilité, complétude"
+    )
 
 # ========== NETWORK & INFLUENCE (NEW) ==========
 class NetworkAndInfluence(BaseModel):
@@ -134,6 +137,65 @@ class Publication(BaseModel):
     url: Optional[str] = None
     date: Optional[str] = None
     reach: Optional[str] = None
+
+# ========== LINKEDIN ACTIVITY ANALYSIS (v3.1) ==========
+class LinkedInPost(BaseModel):
+    content_summary: str = Field(description="Résumé du post")
+    date: Optional[str] = None
+    themes: List[str] = Field(description="Thématiques abordées")
+    expertise_signals: Optional[str] = Field(description="Signaux d'expertise détectés")
+    engagement_quality: Optional[str] = Field(description="Qualité de l'engagement observé")
+
+class LinkedInActivityAnalysis(BaseModel):
+    posts_analyzed: int = Field(description="Nombre de posts analysés", default=0)
+    linkedin_urls_analyzed: Optional[List[str]] = Field(
+        description="URLs LinkedIn consultées pour l'analyse (snippets Serper)",
+        default=None
+    )
+    recent_posts: List[LinkedInPost] = Field(description="Résumés des posts récents")
+    recurring_themes: List[str] = Field(description="Thématiques récurrentes identifiées")
+    expertise_level: Optional[str] = Field(description="Niveau d'expertise démontré")
+    authority_signals: Optional[str] = Field(description="Signaux d'autorité (ton, crédibilité, qualité)")
+    engagement_analysis: Optional[str] = Field(description="Analyse globale de l'engagement")
+    thought_leadership_score: Optional[int] = Field(ge=0, le=100, default=None)
+    professional_reputation_assessment: Optional[str] = Field(
+        description="Évaluation qualitative basée sur interactions, commentaires, reconnaissance pairs"
+    )
+
+# ========== PAPPERS DEEP ANALYSIS (v3.1) ==========
+class FinancialHistoryYear(BaseModel):
+    year: int
+    revenue: Optional[str] = None
+    result: Optional[str] = None
+    equity: Optional[str] = None
+    employees: Optional[int] = None
+
+class MandateHistory(BaseModel):
+    company_name: str
+    siren: Optional[str] = None
+    role: str
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    status: Optional[str] = Field(description="Actif, Radié, etc.")
+    company_status: Optional[str] = None
+
+class RealEstateAsset(BaseModel):
+    type: str = Field(description="Parcelle, Transaction DVF, etc.")
+    location: Optional[str] = None
+    date: Optional[str] = None
+    value: Optional[str] = None
+    details: Optional[str] = None
+
+class PappersDeepAnalysis(BaseModel):
+    financial_history: List[FinancialHistoryYear] = Field(description="Évolution financière 5 dernières années")
+    mandate_history: List[MandateHistory] = Field(description="Historique complet des mandats")
+    legal_issues: List[str] = Field(description="Décisions de justice, procédures en cours")
+    real_estate_assets: List[RealEstateAsset] = Field(description="Patrimoine immobilier détecté")
+    bodacc_complete: List[str] = Field(description="Publications BODACC complètes")
+    rcs_observations: List[str] = Field(description="Observations RCS")
+    credibility_indicators: Optional[str] = Field(
+        description="Bilans déposés à temps, mandats actifs, conformité, etc."
+    )
 
 # ========== MAIN PROFILE ==========
 class PersonProfileV3(BaseModel):
@@ -164,6 +226,10 @@ class PersonProfileV3(BaseModel):
     # Flags & Analysis
     red_flags: List[RedFlag] = []
     coherence_analysis: Optional[CoherenceAnalysis] = None
+
+    # v3.1 Deep Analysis
+    linkedin_activity_analysis: Optional[LinkedInActivityAnalysis] = None
+    pappers_deep_analysis: Optional[PappersDeepAnalysis] = None
 
     # Skills & Publications
     skills: List[str] = []

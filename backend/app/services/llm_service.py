@@ -5,6 +5,13 @@ from pathlib import Path
 from jinja2 import Template
 from openai import OpenAI
 
+# v3.1: Import content cleaning utilities
+from app.utils.content_cleaner import (
+    clean_scraped_html,
+    parse_linkedin_posts,
+    estimate_token_count
+)
+
 class LLMService:
     def __init__(self):
         self.api_key = os.getenv('OPENAI_API_KEY')
@@ -16,87 +23,78 @@ class LLMService:
 
     def _clean_pappers_data(self, pappers_data: Dict) -> Optional[Dict]:
         """
-        Nettoie les données Pappers pour ne garder que les champs utiles.
-        Évite d'envoyer 5000 lignes de JSON brut au LLM.
+        Nettoie les données Pappers v3.1 pour ne garder que les champs utiles.
+        Structure: pappers_data['companies'] contient liste d'entreprises avec economic_data
         """
-        if not pappers_data:
+        if not pappers_data or not pappers_data.get('companies'):
             return None
 
-        cleaned = {}
+        cleaned = {
+            'full_name': pappers_data.get('full_name'),
+            'companies': []
+        }
 
-        # Entreprise principale
-        if 'entreprise' in pappers_data:
-            ent = pappers_data['entreprise']
-            cleaned['entreprise'] = {
-                'nom': ent.get('nom_entreprise'),
-                'siren': ent.get('siren'),
-                'forme_juridique': ent.get('forme_juridique'),
-                'date_creation': ent.get('date_creation'),
-                'capital': ent.get('capital'),
-                'effectif': ent.get('tranche_effectif'),
-                'activite': ent.get('libelle_activite_principale'),
-                'siege': {
-                    'ville': ent.get('siege', {}).get('ville'),
-                    'code_postal': ent.get('siege', {}).get('code_postal')
-                }
+        # Nettoyer chaque entreprise trouvée
+        for company in pappers_data['companies'][:3]:  # Max 3 entreprises
+            company_clean = {
+                'nom': company.get('nom_entreprise'),
+                'siren': company.get('siren'),
+                'person_found': company.get('person_found', False),
+                'person_mandates': company.get('person_mandates', [])
             }
 
-            # Données financières (CRITIQUE)
-            if 'dernier_bilan' in ent:
-                bilan = ent['dernier_bilan']
-                cleaned['entreprise']['finances'] = {
-                    'exercice': bilan.get('date_cloture_exercice'),
-                    'chiffre_affaires': bilan.get('chiffre_affaires'),
-                    'resultat_net': bilan.get('resultat'),
-                    'capitaux_propres': bilan.get('capitaux_propres'),
-                    'total_bilan': bilan.get('total_bilan')
+            # Extraire economic_data si présent
+            if 'economic_data' in company:
+                econ = company['economic_data']
+                company_clean['economic'] = {
+                    # Base
+                    'capital_social': econ.get('capital_social'),
+                    'chiffre_affaires': econ.get('chiffre_affaires'),
+                    'resultat': econ.get('resultat'),
+                    'effectif': econ.get('effectif'),
+                    'date_creation': econ.get('date_creation'),
+                    'statut_rcs': econ.get('statut_rcs'),
+                    'entreprise_cessee': econ.get('entreprise_cessee'),
+
+                    # RED FLAGS
+                    'procedures_collectives': econ.get('procedures_collectives', []),
+                    'date_radiation_rcs': econ.get('date_radiation_rcs'),
+
+                    # Comptes (historique financier 5 ans)
+                    'comptes': econ.get('comptes', [])[:5],  # 5 derniers exercices
+
+                    # BODACC
+                    'annonces_bodacc': econ.get('annonces_bodacc', [])[:10],
                 }
 
-        # Dirigeants et bénéficiaires
-        if 'representants' in pappers_data:
-            cleaned['dirigeants'] = [
-                {
-                    'nom': rep.get('nom'),
-                    'prenom': rep.get('prenom'),
-                    'qualite': rep.get('qualite'),
-                    'date_prise_poste': rep.get('date_prise_de_poste')
-                }
-                for rep in pappers_data['representants'][:10]  # Max 10 dirigeants
-            ]
+                # v3.1: Champs premium (si disponibles)
+                if 'entreprises_dirigees' in econ and econ['entreprises_dirigees']:
+                    company_clean['economic']['entreprises_dirigees'] = list(econ['entreprises_dirigees'])[:10]
 
-        if 'beneficiaires_effectifs' in pappers_data:
-            cleaned['beneficiaires'] = [
-                {
-                    'nom': ben.get('nom'),
-                    'prenom': ben.get('prenom'),
-                    'pourcentage_capital': ben.get('pourcentage_parts'),
-                    'pourcentage_votes': ben.get('pourcentage_votes')
-                }
-                for ben in pappers_data['beneficiaires_effectifs'][:5]  # Max 5 bénéficiaires
-            ]
+                if 'observations' in econ and econ['observations']:
+                    company_clean['economic']['observations'] = list(econ['observations'])[:10]
 
-        # Mandats dans d'autres entreprises
-        if 'mandats' in pappers_data:
-            cleaned['autres_mandats'] = [
-                {
-                    'entreprise': m.get('nom_entreprise'),
-                    'siren': m.get('siren'),
-                    'qualite': m.get('qualite'),
-                    'actif': m.get('actif', True)
-                }
-                for m in pappers_data['mandats'][:15]  # Max 15 mandats
-            ]
+                if 'decisions' in econ and econ['decisions']:
+                    company_clean['economic']['decisions'] = list(econ['decisions'])[:5]  # Décisions de justice
 
-        # Publications BODACC récentes
-        if 'publications_bodacc' in pappers_data:
-            cleaned['bodacc'] = [
-                {
-                    'type': pub.get('type'),
-                    'date': pub.get('date_parution'),
-                    'numero': pub.get('numero_parution')
-                }
-                for pub in pappers_data['publications_bodacc'][:10]  # Max 10 pubs
-            ]
+                if 'parcelles_detenues' in econ and econ['parcelles_detenues']:
+                    parcelles_data = econ['parcelles_detenues']
+                    # Pappers retourne {'resultats': [], 'total': N, 'incomplet': bool}
+                    if isinstance(parcelles_data, dict) and 'resultats' in parcelles_data:
+                        company_clean['economic']['parcelles_detenues'] = parcelles_data.get('resultats', [])[:10]
+                    else:
+                        company_clean['economic']['parcelles_detenues'] = list(parcelles_data)[:10]
+
+            cleaned['companies'].append(company_clean)
+
+        # Publications BODACC de la personne (recherche par nom)
+        if 'bodacc_person' in pappers_data and pappers_data['bodacc_person']:
+            bodacc = pappers_data['bodacc_person']
+            cleaned['bodacc_person'] = {
+                'total': bodacc.get('total', 0),
+                'publications': bodacc.get('publications', [])[:10],  # 10 premières
+                'types': bodacc.get('types', {})
+            }
 
         return cleaned
 
@@ -123,6 +121,130 @@ class LLMService:
             'full_name': hatvp_data.get('full_name')
         }
 
+    def _summarize_linkedin_posts(self, posts: List[Dict]) -> List[Dict]:
+        """
+        Pré-résume les posts LinkedIn avec GPT-4o-mini pour économiser des tokens.
+
+        Réduit les posts de ~300-500 tokens chacun à ~50-100 tokens.
+        Coût: $0.15/1M tokens (16x moins cher que GPT-4o)
+        Réduction: ~80% des tokens
+
+        Args:
+            posts: Liste de posts parsés (avec content, date, engagement)
+
+        Returns:
+            Liste de posts résumés (avec content_summary, themes, expertise_signals)
+        """
+        if not posts or not self.client:
+            return []
+
+        summarized_posts = []
+
+        try:
+            for post in posts[:10]:  # Max 10 posts
+                if not post.get('content') or len(post['content']) < 50:
+                    continue
+
+                # Résumer avec GPT-4o-mini (cheap & fast)
+                response = self.client.chat.completions.create(
+                    model="gpt-4o-mini",  # 16x cheaper than gpt-4o
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "Tu es un assistant d'analyse de contenu LinkedIn. Résume le post en identifiant les thématiques et signaux d'expertise. Réponds en JSON avec: {\"summary\": \"...\", \"themes\": [...], \"expertise_signals\": \"...\"}. Sois concis (max 2 phrases)."
+                        },
+                        {
+                            "role": "user",
+                            "content": f"Post LinkedIn:\n{post['content'][:1000]}"  # Limit input
+                        }
+                    ],
+                    temperature=0.3,
+                    max_tokens=150,  # Short summary
+                    response_format={"type": "json_object"}
+                )
+
+                result = json.loads(response.choices[0].message.content)
+
+                summarized_posts.append({
+                    'content_summary': result.get('summary', ''),
+                    'themes': result.get('themes', []),
+                    'expertise_signals': result.get('expertise_signals', ''),
+                    'date': post.get('date'),
+                    'engagement': post.get('engagement')
+                })
+
+                print(f"[LLM] Post résumé: {len(post['content'])} chars → {len(result.get('summary', ''))} chars")
+
+        except Exception as e:
+            print(f"[LLM] Erreur résumé posts: {e}")
+            # Fallback: retourner posts bruts (sans résumé)
+            return [{'content_summary': p['content'][:200], 'themes': [], 'expertise_signals': ''} for p in posts[:5]]
+
+        return summarized_posts
+
+    def _clean_and_process_scraped_data(self, scraped_data: List[Dict]) -> tuple[str, List[Dict]]:
+        """
+        Nettoie et traite les données scrapées pour réduire les tokens.
+
+        1. Nettoie HTML avec BeautifulSoup (supprime nav, footer, ads)
+        2. Extrait posts LinkedIn si présents
+        3. Résume les posts avec GPT-4o-mini
+        4. Retourne contenu nettoyé + posts résumés
+
+        Réduction estimée: 60-70% des tokens web
+
+        Args:
+            scraped_data: Données brutes de Firecrawl
+
+        Returns:
+            (content_summary: str, linkedin_posts_summarized: List[Dict])
+        """
+        cleaned_items = []
+        all_linkedin_posts = []
+
+        print(f"[LLM] Nettoyage de {len(scraped_data)} pages scrapées...")
+
+        for item in scraped_data:
+            url = item.get('url', '')
+            raw_content = item.get('content', '')
+
+            # Nettoyer HTML
+            cleaned_content = clean_scraped_html(raw_content, url)
+
+            # Estimer réduction
+            tokens_before = estimate_token_count(raw_content)
+            tokens_after = estimate_token_count(cleaned_content)
+            reduction = ((tokens_before - tokens_after) / tokens_before * 100) if tokens_before > 0 else 0
+
+            print(f"[LLM] {url[:50]}... : {tokens_before} → {tokens_after} tokens (-{reduction:.0f}%)")
+
+            # Extraire posts LinkedIn si c'est une page d'activité
+            if 'linkedin.com' in url.lower() and '/activity' in url.lower():
+                posts = parse_linkedin_posts(raw_content)
+                if posts:
+                    all_linkedin_posts.extend(posts)
+                    print(f"[LLM] {len(posts)} posts LinkedIn extraits de {url}")
+
+            # Limiter contenu nettoyé (max 2000 chars par page)
+            cleaned_items.append({
+                'source': item.get('source', 'unknown'),
+                'url': url,
+                'content': cleaned_content[:2000]
+            })
+
+        # Assembler résumé du contenu
+        content_summary = "\n\n".join([
+            f"Source: {item['source']}\nURL: {item['url']}\n{item['content']}"
+            for item in cleaned_items
+        ])
+
+        # Résumer les posts LinkedIn avec GPT-4o-mini
+        linkedin_posts_summarized = []
+        if all_linkedin_posts:
+            print(f"[LLM] Résumé de {len(all_linkedin_posts)} posts LinkedIn avec GPT-4o-mini...")
+            linkedin_posts_summarized = self._summarize_linkedin_posts(all_linkedin_posts)
+
+        return content_summary, linkedin_posts_summarized
 
     def _load_prompt_template(self) -> Template:
         # Utiliser le nouveau prompt Due Diligence
@@ -136,11 +258,60 @@ class LLMService:
 
         return Template(template_content)
 
-    def create_analysis_prompt(self, first_name: str, last_name: str, company: str, scraped_data: List[Dict], pappers_data: Dict = None, dvf_data: Dict = None, hatvp_data: Dict = None) -> str:
-        content_summary = "\n\n".join([
-            f"Source: {item['source']}\nQuery: {item['url']}\nContent:\n{item['content'][:2000]}"
-            for item in scraped_data
-        ])
+    def _filter_content_for_relevance(self, scraped_data: List[Dict], first_name: str, last_name: str, company: str) -> List[Dict]:
+        """
+        Filters scraped content for relevance using a fast LLM to avoid homonym pollution.
+        """
+        if not self.client:
+            return scraped_data
+
+        relevant_items = []
+        
+        for item in scraped_data:
+            content_sample = item.get('content', '')[:2000] # Use a sample of the content
+            if not content_sample:
+                continue
+
+            try:
+                # Using a cheaper and faster model for filtering
+                response = self.client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": f"You are a data relevance filter. Your task is to determine if the following text is relevant to {first_name} {last_name}, who is associated with the company {company}. Respond ONLY with a JSON object containing 'is_relevant' (boolean) and 'confidence' (0-100)."
+                        },
+                        {
+                            "role": "user",
+                            "content": f"Text to analyze:\n\n---\n\n{content_sample}"
+                        }
+                    ],
+                    temperature=0.0,
+                    response_format={"type": "json_object"}
+                )
+                
+                result = json.loads(response.choices[0].message.content)
+                
+                if result.get('is_relevant') and result.get('confidence', 0) >= 70:
+                    print(f"[LLM Filter] ✓ Relevant content found for {item['url']} (Confidence: {result.get('confidence')})")
+                    relevant_items.append(item)
+                else:
+                    print(f"[LLM Filter] ✗ Irrelevant content SKIPPED for {item['url']} (Confidence: {result.get('confidence')})")
+
+            except Exception as e:
+                print(f"[LLM Filter] Error during relevance check for {item['url']}: {e}. Including item by default.")
+                relevant_items.append(item)
+
+        return relevant_items
+
+    def create_analysis_prompt(self, first_name: str, last_name: str, company: str, scraped_data: List[Dict], pappers_data: Dict = None, dvf_data: Dict = None, hatvp_data: Dict = None, linkedin_urls: List[str] = None) -> str:
+        # v3.2: Pre-filter scraped data for relevance to fight homonym pollution
+        print(f"\n[LLM] Starting relevance filtering for {len(scraped_data)} scraped items...")
+        relevant_scraped_data = self._filter_content_for_relevance(scraped_data, first_name, last_name, company)
+        print(f"[LLM] Relevance filtering complete. {len(relevant_scraped_data)} items are relevant.")
+
+        # v3.1: Nettoyer et traiter les données scrapées (réduction 60-70% tokens)
+        content_summary, linkedin_posts_summarized = self._clean_and_process_scraped_data(relevant_scraped_data)
 
         # Nettoyer et formater les données structurées (économie de tokens + focus sur l'essentiel)
         pappers_cleaned = self._clean_pappers_data(pappers_data)
@@ -151,6 +322,21 @@ class LLMService:
         dvf_formatted = json.dumps(dvf_cleaned, indent=2, ensure_ascii=False) if dvf_cleaned else None
         hatvp_formatted = json.dumps(hatvp_cleaned, indent=2, ensure_ascii=False) if hatvp_cleaned else None
 
+        # v3.1: Formater posts LinkedIn résumés
+        linkedin_posts_formatted = json.dumps(linkedin_posts_summarized, indent=2, ensure_ascii=False) if linkedin_posts_summarized else None
+
+        # v3.1: Formater URLs LinkedIn analysées
+        linkedin_urls_formatted = json.dumps(linkedin_urls, indent=2, ensure_ascii=False) if linkedin_urls else None
+
+        # Estimer tokens total
+        total_tokens = estimate_token_count(content_summary)
+        if pappers_formatted:
+            total_tokens += estimate_token_count(pappers_formatted)
+        if linkedin_posts_formatted:
+            total_tokens += estimate_token_count(linkedin_posts_formatted)
+
+        print(f"[LLM] Tokens estimés pour l'analyse: ~{total_tokens} tokens")
+
         prompt = self.prompt_template.render(
             first_name=first_name,
             last_name=last_name,
@@ -158,7 +344,9 @@ class LLMService:
             content_summary=content_summary,
             pappers_data=pappers_formatted,
             dvf_data=dvf_formatted,
-            hatvp_data=hatvp_formatted
+            hatvp_data=hatvp_formatted,
+            linkedin_posts=linkedin_posts_formatted,  # v3.1: Passer posts résumés au prompt
+            linkedin_urls=linkedin_urls_formatted  # v3.1: Passer URLs LinkedIn au prompt
         )
 
         return prompt
@@ -240,7 +428,7 @@ class LLMService:
 
         return profile_data
 
-    def analyze_profile(self, first_name: str, last_name: str, company: str, scraped_data: List[Dict], pappers_data: Dict = None, dvf_data: Dict = None, hatvp_data: Dict = None) -> Dict:
+    def analyze_profile(self, first_name: str, last_name: str, company: str, scraped_data: List[Dict], pappers_data: Dict = None, dvf_data: Dict = None, hatvp_data: Dict = None, linkedin_urls: List[str] = None) -> Dict:
         if not self.client:
             raise ValueError("OpenAI API key not configured")
 
@@ -248,7 +436,7 @@ class LLMService:
             raise ValueError("No valid scraped data available for analysis")
 
         try:
-            prompt = self.create_analysis_prompt(first_name, last_name, company, scraped_data, pappers_data, dvf_data, hatvp_data)
+            prompt = self.create_analysis_prompt(first_name, last_name, company, scraped_data, pappers_data, dvf_data, hatvp_data, linkedin_urls)
 
             response = self.client.chat.completions.create(
                 model=os.getenv('OPENAI_MODEL', "gpt-4o"),
@@ -265,6 +453,19 @@ class LLMService:
             # Valider et corriger automatiquement les erreurs communes
             print("[LLM] Validation et correction post-génération...")
             result = self._validate_and_fix_profile(result)
+
+            # Extract LinkedIn URLs from analysis and add to general sources
+            if 'linkedin_activity_analysis' in result and result['linkedin_activity_analysis'] and \
+               'linkedin_urls_analyzed' in result['linkedin_activity_analysis'] and \
+               result['linkedin_activity_analysis']['linkedin_urls_analyzed']:
+                
+                if 'sources' not in result or result['sources'] is None:
+                    result['sources'] = []
+                
+                # Add unique LinkedIn URLs to sources
+                for url in result['linkedin_activity_analysis']['linkedin_urls_analyzed']:
+                    if url not in result['sources']:
+                        result['sources'].append(url)
 
             return result
 

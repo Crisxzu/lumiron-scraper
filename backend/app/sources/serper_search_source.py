@@ -192,9 +192,9 @@ class SerperSearchSource(BaseSource):
         scrapable_urls = []
         linkedin_profiles = []
 
-        # Query 1: Recherche générale (augmenté à 30 résultats pour compenser 403)
+        # Query 1: Recherche générale (v3.1: augmenté à 50 résultats)
         query1 = f'{full_name} {company}'
-        results1 = self.search_google(query1, num_results=30)
+        results1 = self.search_google(query1, num_results=50)
 
         if results1:
             extracted = self.extract_urls_and_snippets(results1)
@@ -212,9 +212,9 @@ class SerperSearchSource(BaseSource):
                 elif item['scrapable']:
                     scrapable_urls.append(item['url'])
 
-        # Query 2: Recherche Google News API pour articles récents
+        # Query 2: Recherche Google News API pour articles récents (v3.1: augmenté à 30)
         query_news = f'{full_name} {company}'
-        results_news = self.search_news(query_news, num_results=20)
+        results_news = self.search_news(query_news, num_results=30)
 
         if results_news:
             extracted_news = self.extract_urls_and_snippets(results_news, is_news=True)
@@ -226,9 +226,9 @@ class SerperSearchSource(BaseSource):
                     date_str = f" ({item['date']})" if item.get('date') else ""
                     print(f"[Serper News] ✓ Article found: {item['title'][:60]}{date_str}")
 
-        # Query 3: Recherche Twitter/X pour déclarations publiques (NOUVEAU)
+        # Query 3: Recherche Twitter/X pour déclarations publiques (v3.1: augmenté à 10)
         query_twitter = f'site:twitter.com OR site:x.com "{full_name}" {company}'
-        results_twitter = self.search_google(query_twitter, num_results=5)
+        results_twitter = self.search_google(query_twitter, num_results=10)
 
         if results_twitter:
             extracted_twitter = self.extract_urls_and_snippets(results_twitter)
@@ -240,7 +240,7 @@ class SerperSearchSource(BaseSource):
                     # Ajouter les snippets Twitter au cache pour analyse
                     print(f"[Serper] ✓ Twitter/X mention found: {item['url']}")
 
-        # Query 4: Recherche sites officiels français (augmenté pour plus de diversité)
+        # Query 4: Recherche sites officiels français (v3.1: augmenté à 10 résultats)
         official_sites_queries = [
             (f'site:legifrance.gouv.fr "{full_name}" OR "{last_name}"', 'Légifrance (Justice)'),
             (f'site:infogreffe.fr "{full_name}" OR "{company}"', 'Infogreffe (Greffe)'),
@@ -249,7 +249,7 @@ class SerperSearchSource(BaseSource):
         ]
 
         for query, source_name in official_sites_queries:
-            results_official = self.search_google(query, num_results=5)  # Augmenté de 3 à 5
+            results_official = self.search_google(query, num_results=10)  # v3.1: Augmenté de 5 à 10
             if results_official:
                 extracted_official = self.extract_urls_and_snippets(results_official)
                 self._store_snippets(extracted_official, full_name, company)
@@ -260,15 +260,15 @@ class SerperSearchSource(BaseSource):
                     if item['snippet']:
                         print(f"[Serper] ✓ {source_name} mention: {item['title'][:50]}")
 
-        # Query 5: Recherches complémentaires pour plus de diversité
+        # Query 5: Recherches complémentaires pour plus de diversité (v3.1: augmenté)
         additional_queries = [
-            (f'{full_name} {company} (CEO OR CTO OR CFO OR Director OR Manager OR Président OR Gérant)', 15),
-            (f'"{full_name}" interview OR article OR tribune', 10),
-            (f'{company} "{last_name}" équipe OR team OR about', 10),
+            (f'{full_name} {company} (CEO OR CTO OR CFO OR Director OR Manager OR Président OR Gérant)', 20),
+            (f'"{full_name}" interview OR article OR tribune', 15),
+            (f'{company} "{last_name}" équipe OR team OR about', 15),
         ]
 
         for query, num in additional_queries:
-            if len(scrapable_urls) >= 40:  # Stop si on a déjà 40 URLs
+            if len(scrapable_urls) >= 80:  # v3.1: Stop si on a déjà 80 URLs (au lieu de 40)
                 break
 
             results = self.search_google(query, num_results=num)
@@ -289,6 +289,31 @@ class SerperSearchSource(BaseSource):
                             print(f"[Serper] ✓ LinkedIn found: {item['url']}")
                     elif item['scrapable'] and item['url'] not in scrapable_urls:
                         scrapable_urls.append(item['url'])
+
+        # Query 6: Recherches spécialisées (v3.1: NOUVEAU)
+        specialized_queries = [
+            (f'site:github.com "{full_name}" OR "{last_name}"', 'GitHub', 10),
+            (f'"{full_name}" podcast OR conférence OR talk OR webinar', 'Podcasts/Talks', 10),
+            (f'site:patents.google.com "{full_name}"', 'Brevets', 5),
+            (f'"{full_name}" {company} publication OR recherche OR étude', 'Publications', 10),
+            (f'"{full_name}" TechCrunch OR Maddyness OR FrenchWeb OR LesEchos', 'Médias Tech', 10),
+        ]
+
+        for query, source_name, num in specialized_queries:
+            if len(scrapable_urls) >= 100:  # Hard limit à 100 URLs
+                break
+
+            results_specialized = self.search_google(query, num_results=num)
+
+            if results_specialized:
+                extracted_specialized = self.extract_urls_and_snippets(results_specialized)
+                self._store_snippets(extracted_specialized, full_name, company)
+
+                for item in extracted_specialized:
+                    if item['scrapable'] and item['url'] not in scrapable_urls:
+                        scrapable_urls.append(item['url'])
+                    if item['snippet']:
+                        print(f"[Serper] ✓ {source_name} mention: {item['title'][:50]}")
 
         if linkedin_profiles:
             linkedin_profiles.sort(key=lambda x: x['position'])

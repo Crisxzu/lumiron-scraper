@@ -46,7 +46,17 @@ class ProfileService:
                 scraped_data.get("hatvp_data")
             )
 
-            profile_data["sources"] = scraped_data.get("sources", [])
+            # v3.1: Ajouter sources web + URLs LinkedIn analysées
+            sources = scraped_data.get("sources", [])
+
+            # Extraire URLs LinkedIn depuis linkedin_activity_analysis
+            if "linkedin_activity_analysis" in profile_data:
+                linkedin_urls = profile_data["linkedin_activity_analysis"].get("linkedin_urls_analyzed", [])
+                if linkedin_urls:
+                    # Ajouter URLs LinkedIn aux sources (déduplication)
+                    sources.extend([url for url in linkedin_urls if url not in sources])
+
+            profile_data["sources"] = sources
 
             self.cache.set(first_name, last_name, company, scraped_data, profile_data)
 

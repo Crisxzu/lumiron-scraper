@@ -7,3 +7,4 @@ requests==2.32.5
 gunicorn==23.0.0
 pydantic==2.12.5
 gevent
+beautifulsoup4==4.14.3

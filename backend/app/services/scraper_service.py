@@ -134,16 +134,41 @@ class ScraperService:
         print(f"\n=== Scraping Profile: {first_name} {last_name} @ {company} ===")
         urls_by_source = self.collect_urls_from_sources(first_name, last_name, company)
 
-        all_urls = []
+        # Calculer total URLs générées par toutes les sources
+        all_urls = [url for urls in urls_by_source.values() for url in urls]
+
+        # Séparer URLs web normales vs URLs de sources avec API/cache
+        web_urls = []
+        api_urls = []  # LinkedIn, Pappers, DVF, HATVP (déjà collectées via API)
         url_to_source = {}
+
+        # Sources qui utilisent API/cache (pas besoin de validation URL HTTP)
+        # LinkedIn: URLs directes de profil à scraper
+        # Pappers/DVF/HATVP: URLs fictives "pappers://" avec données en cache
+        api_sources = {'linkedin', 'pappers_legal', 'dvf_immobilier', 'hatvp_ppe'}
 
         for source_name, urls in urls_by_source.items():
             for url in urls:
-                all_urls.append(url)
                 url_to_source[url] = source_name
 
+                # v3.1: Ne pas valider URLs de sources API (LinkedIn, Pappers, etc.)
+                # Ces données sont déjà collectées/vérifiées, on veut juste scraper les pages
+                if source_name in api_sources:
+                    api_urls.append(url)
+                else:
+                    web_urls.append(url)
+
         print(f"\n=== URL Validation ===")
-        accessible_urls = filter_accessible_urls(all_urls, timeout=3, max_concurrent=50)
+        print(f"[URL Validator] URLs à valider: {len(web_urls)} web + {len(api_urls)} API/cached (bypassed)")
+
+        # Valider URLs web (incluant résultats Serper)
+        # v3.1: Augmentation limite à 200 pour tester toutes URLs importantes
+        validated_web_urls = filter_accessible_urls(web_urls, timeout=3, max_concurrent=200) if web_urls else []
+
+        # Combiner URLs validées + URLs API (qui sont déjà vérifiées par les sources)
+        accessible_urls = validated_web_urls + api_urls
+
+        print(f"[URL Validator] Total accessible: {len(accessible_urls)} ({len(validated_web_urls)} web + {len(api_urls)} API/cached)")
 
         if not accessible_urls:
             raise Exception(
@@ -163,7 +188,7 @@ class ScraperService:
         for source in self.sources:
             if hasattr(source, 'linkedin_cache') and source.linkedin_cache:
                 linkedin_data = source.linkedin_cache
-                print(f"[LinkedIn] ✓ Using cached LinkedIn data: {linkedin_data['urls']}")
+                print(f"[LinkedIn] ✓ Found {linkedin_data['count']} LinkedIn URLs in cache")
 
             if hasattr(source, 'get_cached_data'):
                 cached = source.get_cached_data()
@@ -179,6 +204,11 @@ class ScraperService:
                         hatvp_data = cached
                         ppe_status = "DETECTED ⚠" if cached.get('ppe_detected') else "Not detected"
                         print(f"[HATVP] ✓ PPE status: {ppe_status}")
+
+        # v3.1: LinkedIn snippets (Firecrawl ne supporte pas linkedin.com)
+        # On utilise les snippets Serper qui contiennent déjà du contenu exploitable
+        if linkedin_data and linkedin_data.get('combined_snippet'):
+            print(f"[LinkedIn] ✓ Found {linkedin_data['count']} LinkedIn snippets (Firecrawl doesn't support linkedin.com)")
 
         collected_data = {
             "urls_by_source": urls_by_source,
@@ -200,6 +230,14 @@ class ScraperService:
 
         max_total_scrapes = int(os.getenv("MAX_TOTAL_SCRAPES", '3'))  # Maximum 3 scrapes
 
+        # v3.1: Filtrer URLs fictives (pappers://, dvf://, hatvp://)
+        # Ces URLs servent juste de marqueurs pour les données en cache
+        scrapable_urls = [url for url in accessible_urls if url.startswith('http')]
+
+        print(f"\n=== Scraping Queue ===")
+        print(f"[Scraper] Total accessible: {len(accessible_urls)} ({len(scrapable_urls)} HTTP + {len(accessible_urls) - len(scrapable_urls)} cached)")
+        print(f"[Scraper] Will scrape: {min(len(scrapable_urls), max_total_scrapes)} URLs (limit: {max_total_scrapes})")
+
         # Firecrawl rate limit: 10 req/min (Free tier)
         # Pour être safe: 1 requête toutes les 6 secondes
         rate_limit_delay = 6.5  # secondes entre chaque scrape
@@ -207,7 +245,7 @@ class ScraperService:
         successful_scrapes = 0
         scrape_start_time = time.time()
 
-        for idx, url in enumerate(accessible_urls[:max_total_scrapes]):
+        for idx, url in enumerate(scrapable_urls[:max_total_scrapes]):
             if successful_scrapes >= max_total_scrapes:
                 break
 
@@ -246,19 +284,18 @@ class ScraperService:
             else:
                 collected_data["stats"]["failed"] += 1
 
-        # Étape 3: Ajouter les données LinkedIn fusionnées si disponibles
-        if linkedin_data:
-            # Le nouveau format contient plusieurs profils fusionnés
+        # Ajouter snippets LinkedIn si disponibles (Firecrawl ne supporte pas LinkedIn)
+        if linkedin_data and linkedin_data.get('combined_snippet'):
             collected_data["scraped_content"].append({
                 "source": "linkedin_snippets",
-                "url": ", ".join(linkedin_data['urls']),  # Toutes les URLs LinkedIn
-                "content": linkedin_data['combined_snippet'],  # Contenu fusionné
+                "url": ", ".join(linkedin_data.get('urls', [])[:5]),
+                "content": linkedin_data['combined_snippet'][:5000],  # Limiter à 5000 chars
                 "success": True
             })
-            # Ajouter toutes les URLs LinkedIn aux sources
-            collected_data["sources"].extend(linkedin_data['urls'])
             collected_data["stats"]["successful"] += 1
-            print(f"[LinkedIn] ✓ Added {linkedin_data['count']} merged LinkedIn profile(s) to scraped content")
+            # v3.1: Ajouter liste complète des URLs LinkedIn pour traçabilité
+            collected_data["linkedin_urls"] = linkedin_data.get('urls', [])
+            print(f"[LinkedIn] ✓ Added {linkedin_data['count']} LinkedIn snippets to analysis")
 
         print(f"\n=== Scraping Stats ===")
         print(f"Attempted: {collected_data['stats']['attempted']}")

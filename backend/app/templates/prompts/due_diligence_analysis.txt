@@ -24,6 +24,14 @@ Ta mission n'est PAS de répéter un CV, mais d'analyser la RÉALITÉ économiqu
 {{ hatvp_data }}
 {% endif %}
 
+{% if linkedin_posts %}
+**POSTS LINKEDIN (Pré-résumés avec GPT-4o-mini):**
+{{ linkedin_posts }}
+
+**URLs LINKEDIN ANALYSÉES (à intégrer dans linkedin_urls_analyzed):**
+{{ linkedin_urls }}
+{% endif %}
+
 **DONNÉES WEB (Scraping + LinkedIn + News + Twitter + Presse):**
 {{ content_summary }}
 
@@ -170,7 +178,59 @@ TOUTES les valeurs textuelles DOIVENT être EN FRANÇAIS (sauf URLs, emails, nom
     "timeline_verification": "Vérification chronologie : dates logiques ? Trous de X mois/années ? Chevauchements impossibles ?",
     "cross_source_validation": "Quelles infos sont confirmées par 2+ sources indépendantes ? Lesquelles ne le sont pas ?",
     "discrepancies": ["Liste des incohérences détectées avec sources"] | null,
-    "reliability_score": 0-100
+    "reliability_score": 0-100,
+    "reliability_justification": "OBLIGATOIRE: Justification détaillée du reliability_score (3-6 lignes) basée sur cohérence multi-sources, vérifiabilité des infos, complétude du profil, et détection d'incohérences"
+  },
+
+  "linkedin_activity_analysis": {
+    "posts_analyzed": 0,
+    "linkedin_urls_analyzed": ["Liste des URLs LinkedIn consultées pour cette analyse"],
+    "recent_posts": [
+      {
+        "content_summary": "Résumé du post (2-3 lignes)",
+        "date": "Date si disponible",
+        "themes": ["Thématiques identifiées"],
+        "expertise_signals": "Signaux d'expertise détectés dans ce post",
+        "engagement_quality": "Qualité de l'engagement (likes, commentaires pertinents)"
+      }
+    ],
+    "recurring_themes": ["Thèmes récurrents à travers tous les posts"],
+    "expertise_level": "Niveau d'expertise démontré : Expert confirmé | Praticien avancé | Débutant | Non déterminable",
+    "authority_signals": "Signaux d'autorité : interventions d'experts, partages, citations, etc.",
+    "engagement_analysis": "Analyse qualité engagement : interactions pertinentes vs superficielles",
+    "thought_leadership_score": 0-100,
+    "professional_reputation_assessment": "Évaluation réputation basée sur activité LinkedIn (2-3 phrases)"
+  },
+
+  "pappers_deep_analysis": {
+    "financial_history": [
+      {
+        "year": "Année",
+        "revenue": "CA si disponible",
+        "result": "Résultat net si disponible",
+        "evolution": "Évolution vs année précédente"
+      }
+    ],
+    "mandate_history": [
+      {
+        "company": "Nom entreprise",
+        "role": "Rôle",
+        "since": "Date début",
+        "until": "Date fin ou 'En cours'",
+        "status": "Actif | Cessé | Radié"
+      }
+    ],
+    "legal_issues": ["Décisions de justice, procédures, observations RCS si détectées"],
+    "real_estate_assets": [
+      {
+        "type": "Type de bien",
+        "location": "Localisation approximative",
+        "details": "Détails disponibles"
+      }
+    ],
+    "bodacc_complete": ["Publications BODACC complètes avec dates et types"],
+    "rcs_observations": ["Observations au Registre du Commerce si disponibles"],
+    "credibility_indicators": "Synthèse des indicateurs de crédibilité issus de Pappers (2-3 phrases)"
   },
 
   "network_and_influence": {
@@ -223,6 +283,12 @@ TOUTES les valeurs textuelles DOIVENT être EN FRANÇAIS (sauf URLs, emails, nom
    - Si incohérence : SIGNALE-LA dans red_flags, coherence_analysis ET discrepancies
    - Privilégie TOUJOURS : Pappers > Presse > LinkedIn
    - Vérifie timeline minutieusement
+
+1bis. **GESTION DES HOMONYMES (TRÈS IMPORTANT):**
+   - Les données fournies peuvent contenir des informations sur des personnes ayant le même nom (homonymes).
+   - Ton rôle est de DÉSAMBIGUÏSER. Ne rapporte QUE les informations qui concernent de manière certaine la personne cible, identifiée par son association avec l'entreprise "{{ company }}".
+   - Si une information (un article de presse, une autre entreprise, un compte social) semble concerner un homonyme, IGNORE-LA complètement dans le rapport final.
+   - Ne mentionne PAS les informations sur les homonymes, même pour dire que tu les as exclues. Concentre-toi uniquement sur la cible.
 
 2. **RISK ASSESSMENT APPROFONDI:**
    - risk_level "Élevé" si : procédures collectives, radiations, échecs multiples, PPE non déclaré, incohérences majeures
@@ -322,6 +388,75 @@ TOUTES les valeurs textuelles DOIVENT être EN FRANÇAIS (sauf URLs, emails, nom
     - Liste INCOHÉRENCES spécifiques ("LinkedIn: CEO 2020, Pappers: Gérant 2021")
     - Calcule reliability_score basé sur cohérence multi-sources
     - Identifie infos CONFIRMÉES par 2+ sources vs infos UNIQUES
+    - **reliability_justification OBLIGATOIRE**: Rédige 3-6 lignes expliquant le reliability_score en citant:
+      * Niveau de cohérence entre sources (parfaite/bonne/partielle/faible)
+      * Vérifiabilité des infos (confirmées par sources officielles vs déclarations seules)
+      * Complétude du profil (données financières, juridiques, timeline complète vs lacunes)
+      * Incohérences détectées (aucune vs mineures vs majeures)
+
+10bis. **LINKEDIN ACTIVITY ANALYSIS (v3.1 - NOUVEAU):**
+    - Si linkedin_posts fourni : ANALYSER OBLIGATOIREMENT tous les posts disponibles
+    - posts_analyzed : compter le nombre réel de posts analysés
+    - linkedin_urls_analyzed : OBLIGATOIRE - lister TOUTES les URLs LinkedIn consultées dans l'analyse (extraire des snippets fournis)
+    - recent_posts : extraire 5-10 posts les plus significatifs avec:
+      * content_summary (déjà pré-résumé par GPT-4o-mini)
+      * themes identifiés
+      * expertise_signals concrets
+      * engagement_quality (nombre interactions + pertinence)
+    - recurring_themes : identifier 3-5 thématiques récurrentes à travers TOUS les posts
+    - expertise_level : évaluer selon profondeur, technicité, originalité des posts
+      * "Expert confirmé" : posts techniques, insights originaux, reconnaissance pairs
+      * "Praticien avancé" : expérience terrain, analyses pertinentes, engagement qualité
+      * "Débutant" : partages basiques, peu d'insights originaux
+      * "Non déterminable" : données insuffisantes (<3 posts ou contenu superficiel)
+    - authority_signals : citer exemples concrets (commentaires experts, partages influenceurs, citations)
+    - engagement_analysis : qualité vs quantité (10 commentaires experts > 1000 likes sans substance)
+    - thought_leadership_score : 0-100 basé sur originalité, reconnaissance, impact
+      * 80-100 : Leader d'opinion reconnu, crée tendances
+      * 60-79 : Expert visible, contributions significatives
+      * 40-59 : Praticien actif, partages pertinents
+      * 20-39 : Présence modeste, engagement limité
+      * 0-19 : Activité faible ou superficielle
+    - professional_reputation_assessment : synthèse en 2-3 phrases de la réputation basée sur LinkedIn
+    - Si AUCUN post disponible : mettre tous champs à null/0/[] et noter "Pas de données LinkedIn disponibles"
+    - CRITIQUE: Ne PAS inventer des posts ou thèmes si données absentes
+
+10ter. **PAPPERS DEEP ANALYSIS (v3.1 - NOUVEAU):**
+    - Si pappers_data contient economic_data : EXPLOITER TOUTES les données disponibles
+    - financial_history : extraire comptes[] de pappers_data pour construire historique 5 ans
+      * Pour chaque exercice: year, revenue (CA), result (résultat net), evolution (% vs N-1)
+      * Analyser tendances: croissance constante, stagnation, déclin, volatilité
+      * OBLIGATOIRE si comptes[] fourni, sinon []
+    - mandate_history : extraire entreprises_dirigees[] de pappers_data
+      * Pour chaque mandat: company, role, since, until, status
+      * Détecter multi-mandats (gestion simultanée plusieurs entreprises = indicateur pouvoir)
+      * Identifier entreprises radiées/cessées (red flags potentiels)
+      * OBLIGATOIRE si entreprises_dirigees[] fourni, sinon []
+    - legal_issues : compiler decisions[] + observations[] + procedures_collectives[]
+      * Lister TOUTES décisions de justice avec dates et contexte
+      * Lister observations RCS (inscriptions modificatives, nantissements, etc.)
+      * Lister procédures collectives (redressement, liquidation, sauvegarde)
+      * Si aucun : [] (BON SIGNE)
+      * CRITIQUE: Un seul legal issue peut bloquer une transaction
+    - real_estate_assets : extraire parcelles_detenues[] de pappers_data
+      * Pour chaque parcelle: type (terrain, bâti), location (commune), details (surface, etc.)
+      * Estimer patrimoine immobilier professionnel
+      * Croiser avec DVF si disponible
+      * Si aucune parcelle : []
+    - bodacc_complete : extraire annonces_bodacc[] + bodacc_person[] si disponible
+      * Lister publications avec dates, types (immatriculation, modification, radiation, etc.)
+      * Différencier BODACC entreprise vs BODACC personne
+      * Détecter patterns suspects (multiples radiations, modifications fréquentes)
+    - rcs_observations : extraire observations[] de pappers_data
+      * Lister avec dates et types
+      * Identifier signaux positifs (augmentation capital) vs négatifs (nantissements)
+    - credibility_indicators : synthèse 2-3 phrases basée sur:
+      * Santé financière (CA stable/croissant, résultats positifs)
+      * Historique mandats (longévité, diversité, succès)
+      * Absence de legal issues (gage de conformité)
+      * Patrimoine immobilier (indicateur solidité)
+    - Si pappers_data ABSENT ou incomplet : mettre champs à [] et noter "Données Pappers limitées"
+    - CRITIQUE: Pappers = source premium payante, EXPLOITER AU MAXIMUM
 
 11. **STRATEGIC RECOMMENDATIONS (NOUVEAU):**
     - Donne 3-5 recommandations ACTIONNABLES
