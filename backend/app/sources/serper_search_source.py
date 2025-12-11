@@ -202,14 +202,23 @@ class SerperSearchSource(BaseSource):
 
             for item in extracted:
                 if 'linkedin.com' in item['url']:
-                    linkedin_profiles.append({
-                        'url': item['url'],
-                        'snippet': item['snippet'],
-                        'title': item['title'],
-                        'position': item.get('position', 999)
-                    })
-                    print(f"[Serper] ✓ LinkedIn found: {item['url']}")
+                    # v3.1: Filtrer les homonymes LinkedIn
+                    if self._is_linkedin_url_relevant(item['url'], first_name, last_name):
+                        linkedin_profiles.append({
+                            'url': item['url'],
+                            'snippet': item['snippet'],
+                            'title': item['title'],
+                            'position': item.get('position', 999)
+                        })
+                        print(f"[Serper] ✓ LinkedIn found: {item['url']}")
+                    else:
+                        print(f"[Serper] ✗ LinkedIn homonym rejected: {item['url']}")
                 elif item['scrapable']:
+                    # v3.1: Filtrer pages Société.com/Verif.com non pertinentes
+                    if 'societe.com' in item['url'] or 'verif.com' in item['url']:
+                        if not self._is_company_registry_url_relevant(item['url'], company):
+                            print(f"[Serper] ✗ Registry rejected (wrong company): {item['url']}")
+                            continue
                     scrapable_urls.append(item['url'])
 
         # Query 2: Recherche Google News API pour articles récents (v3.1: augmenté à 30)
@@ -255,6 +264,12 @@ class SerperSearchSource(BaseSource):
                 self._store_snippets(extracted_official, full_name, company)
 
                 for item in extracted_official:
+                    # v3.1: Filtrer les pages Société.com/Verif.com non pertinentes
+                    if 'societe.com' in item['url'] or 'verif.com' in item['url']:
+                        if not self._is_company_registry_url_relevant(item['url'], company):
+                            print(f"[Serper] ✗ {source_name} rejected (wrong company): {item['url']}")
+                            continue
+
                     if item['scrapable'] and item['url'] not in scrapable_urls:
                         scrapable_urls.append(item['url'])
                     if item['snippet']:
@@ -279,18 +294,59 @@ class SerperSearchSource(BaseSource):
 
                 for item in extracted:
                     if 'linkedin.com' in item['url']:
-                        if not any(p['url'] == item['url'] for p in linkedin_profiles):
-                            linkedin_profiles.append({
-                                'url': item['url'],
-                                'snippet': item['snippet'],
-                                'title': item['title'],
-                                'position': item.get('position', 999)
-                            })
-                            print(f"[Serper] ✓ LinkedIn found: {item['url']}")
+                        # v3.1: Filtrer les homonymes LinkedIn
+                        if self._is_linkedin_url_relevant(item['url'], first_name, last_name):
+                            if not any(p['url'] == item['url'] for p in linkedin_profiles):
+                                linkedin_profiles.append({
+                                    'url': item['url'],
+                                    'snippet': item['snippet'],
+                                    'title': item['title'],
+                                    'position': item.get('position', 999)
+                                })
+                                print(f"[Serper] ✓ LinkedIn found: {item['url']}")
+                        else:
+                            print(f"[Serper] ✗ LinkedIn homonym rejected: {item['url']}")
                     elif item['scrapable'] and item['url'] not in scrapable_urls:
+                        # v3.1: Filtrer pages Société.com/Verif.com non pertinentes
+                        if 'societe.com' in item['url'] or 'verif.com' in item['url']:
+                            if not self._is_company_registry_url_relevant(item['url'], company):
+                                print(f"[Serper] ✗ Registry rejected (wrong company): {item['url']}")
+                                continue
                         scrapable_urls.append(item['url'])
 
-        # Query 6: Recherches spécialisées (v3.1: NOUVEAU)
+        # Query 6: LinkedIn Posts & Activity (v3.1: NOUVEAU - collecte enrichie)
+        # Objectif: Récupérer 10-15 posts LinkedIn avec commentaires visibles dans snippets
+        linkedin_slug = f"{first_name.lower()}-{last_name.lower()}".replace(' ', '-')
+        linkedin_activity_queries = [
+            (f'site:linkedin.com/posts/{first_name.lower()}-{last_name.lower()}', 'LinkedIn Posts', 20),
+            (f'site:linkedin.com/in/{linkedin_slug}/recent-activity', 'LinkedIn Activity', 15),
+            (f'site:linkedin.com "{full_name}" (shared OR posted OR commented)', 'LinkedIn Engagement', 15),
+            (f'site:linkedin.com "{full_name}" {company} activity', 'LinkedIn Company Posts', 10),
+        ]
+
+        for query, source_name, num in linkedin_activity_queries:
+            results_linkedin = self.search_google(query, num_results=num)
+
+            if results_linkedin:
+                extracted_linkedin = self.extract_urls_and_snippets(results_linkedin)
+                self._store_snippets(extracted_linkedin, full_name, company)
+
+                for item in extracted_linkedin:
+                    if 'linkedin.com' in item['url']:
+                        # v3.1: Filtrer les homonymes LinkedIn
+                        if self._is_linkedin_url_relevant(item['url'], first_name, last_name):
+                            if not any(p['url'] == item['url'] for p in linkedin_profiles):
+                                linkedin_profiles.append({
+                                    'url': item['url'],
+                                    'snippet': item['snippet'],
+                                    'title': item['title'],
+                                    'position': item.get('position', 999)
+                                })
+                                print(f"[Serper] ✓ {source_name}: {item['url']}")
+                        else:
+                            print(f"[Serper] ✗ {source_name} homonym rejected: {item['url']}")
+
+        # Query 7: Recherches spécialisées (v3.1: NOUVEAU)
         specialized_queries = [
             (f'site:github.com "{full_name}" OR "{last_name}"', 'GitHub', 10),
             (f'"{full_name}" podcast OR conférence OR talk OR webinar', 'Podcasts/Talks', 10),
@@ -329,6 +385,79 @@ class SerperSearchSource(BaseSource):
 
         print(f"[Serper] Collected {len(scrapable_urls)} scrapable URLs + LinkedIn profiles: {len(linkedin_profiles)}")
         return scrapable_urls
+
+    def _is_company_registry_url_relevant(self, url: str, company: str) -> bool:
+        """
+        v3.1: Filtre les pages Société.com/Verif.com pour ne garder que les pages de l'entreprise cible.
+
+        Accepte:
+        - ✓ https://www.societe.com/societe/msdev-884571142.html
+        - ✓ https://www.verif.com/societe/MSDEV-68d9c5791299230338aeaf2d/
+
+        Rejette:
+        - ✗ https://www.societe.com/societe/izers-844443663.html (autre entreprise)
+        - ✗ https://www.societe.com/manager/... (page manager générique)
+        - ✗ https://www.verif.com/top/activity-sector-... (page liste générique)
+        """
+        url_lower = url.lower()
+        company_normalized = company.lower().replace(' ', '-').replace('é', 'e').replace('è', 'e')
+
+        # Rejeter les pages génériques (listes, managers, tops, etc.)
+        generic_patterns = [
+            '/manager/',
+            '/top/',
+            '/activity-sector',
+            '/directory/',
+            '/search/',
+            '/list/',
+            '/classement/'
+        ]
+
+        for pattern in generic_patterns:
+            if pattern in url_lower:
+                return False
+
+        # Pour Société.com et Verif.com, vérifier que l'URL contient le nom de l'entreprise
+        if 'societe.com' in url_lower or 'verif.com' in url_lower:
+            # L'URL doit contenir le nom de l'entreprise dans le slug
+            if company_normalized not in url_lower:
+                return False
+
+        return True
+
+    def _is_linkedin_url_relevant(self, url: str, first_name: str, last_name: str) -> bool:
+        """
+        v3.1: Filtre les homonymes LinkedIn en vérifiant que l'URL contient le nom complet.
+        Exemples:
+        - ✓ https://fr.linkedin.com/in/chris-emerson-kouassi
+        - ✗ https://fr.linkedin.com/in/aklade-kouassi-sosthene (autre Kouassi)
+        - ✗ https://uk.linkedin.com/in/cjemerson (Chris Emerson différent)
+        """
+        url_lower = url.lower()
+
+        # Normaliser les noms (enlever accents, lowercase)
+        first_normalized = first_name.lower().replace(' ', '-').replace('é', 'e').replace('è', 'e')
+        last_normalized = last_name.lower().replace(' ', '-').replace('é', 'e').replace('è', 'e')
+
+        # Vérifier que l'URL contient les deux parties du nom
+        # Accepter: /in/prenom-nom, /in/nom-prenom, ou /in/initiale-nom
+        has_first = first_normalized in url_lower or first_name[0].lower() in url_lower
+        has_last = last_normalized in url_lower
+
+        # L'URL doit contenir au moins le nom de famille
+        if not has_last:
+            return False
+
+        # Si c'est juste un répertoire (/pub/dir/), on refuse
+        if '/pub/dir/' in url_lower or '/directory/' in url_lower:
+            return False
+
+        # Pour les noms très communs (ex: "Chris"), exiger aussi le prénom complet
+        # pour éviter les homonymes (ex: cjemerson vs chris-emerson-kouassi)
+        if len(last_name) < 6 and not has_first:
+            return False
+
+        return True
 
     def _merge_linkedin_profiles(self, profiles: List[Dict], person_name: str) -> str:
         if not profiles:

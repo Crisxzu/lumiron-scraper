@@ -184,6 +184,18 @@ TOUTES les valeurs textuelles DOIVENT être EN FRANÇAIS (sauf URLs, emails, nom
 
   "linkedin_activity_analysis": {
     "posts_analyzed": 0,
+
+    // ⚠️ IMPORTANT: Rechercher et analyser AU MOINS 10-15 posts LinkedIn récents de la personne
+    // Sources: 1) Sections "linkedin.com/posts/" dans DONNÉES WEB ci-dessus (snippets Google)
+    //          2) POSTS LINKEDIN pré-résumés si disponibles
+    //
+    // Pour chaque post trouvé, extraire:
+    // - Le contenu/résumé visible (même partiel dans les snippets)
+    // - Les thématiques abordées
+    // - Les signaux d'expertise (citations, références, analyses)
+    // - La qualité de l'engagement visible (commentaires pertinents mentionnés dans snippets)
+    //
+    // Si moins de 10 posts disponibles: analyser TOUS les posts trouvés et indiquer posts_analyzed = nombre réel
     "linkedin_urls_analyzed": ["Liste des URLs LinkedIn consultées pour cette analyse"],
     "recent_posts": [
       {

@@ -125,7 +125,7 @@ class PappersSource(BaseSource):
 
                     # Récupérer détails économiques (si SIREN valide)
                     if siren:
-                        economic_data = self._get_company_details(siren)
+                        economic_data = self._get_company_details(siren, first_name, last_name)
                         if economic_data:
                             enriched_company['economic_data'] = economic_data
 
@@ -227,7 +227,7 @@ class PappersSource(BaseSource):
 
         return person_mandates
 
-    def _get_company_details(self, siren: str) -> Optional[Dict]:
+    def _get_company_details(self, siren: str, first_name: str = "", last_name: str = "") -> Optional[Dict]:
         """Récupère les détails économiques d'une entreprise avec champs supplémentaires configurables"""
         try:
             url = f"{self.API_BASE_URL}/entreprise"
@@ -316,8 +316,23 @@ class PappersSource(BaseSource):
 
             # v3.1: Ajouter champs premium si demandés
             if self.include_entreprises_dirigees and 'entreprises_dirigees' in data:
-                economic_info['entreprises_dirigees'] = data.get('entreprises_dirigees', [])
-                print(f"[Pappers] ✓ Entreprises dirigées: {len(data.get('entreprises_dirigees', []))} found")
+                all_dirigees = data.get('entreprises_dirigees', [])
+
+                # IMPORTANT: Filtrer pour ne garder que les mandats de la personne recherchée
+                # Evite les homonymes (ex: plusieurs "Kouassi" différents)
+                if first_name and last_name:
+                    filtered_dirigees = self._filter_entreprises_dirigees(all_dirigees, first_name, last_name)
+
+                    economic_info['entreprises_dirigees'] = filtered_dirigees
+
+                    if len(filtered_dirigees) < len(all_dirigees):
+                        print(f"[Pappers] ✓ Entreprises dirigées: {len(filtered_dirigees)}/{len(all_dirigees)} after filtering homonyms")
+                    else:
+                        print(f"[Pappers] ✓ Entreprises dirigées: {len(filtered_dirigees)} found")
+                else:
+                    # Pas de filtrage si first_name/last_name non fournis
+                    economic_info['entreprises_dirigees'] = all_dirigees
+                    print(f"[Pappers] ⚠ Entreprises dirigées: {len(all_dirigees)} found (no filtering - missing name)")
 
             if self.include_observations and 'observations' in data:
                 economic_info['observations'] = data.get('observations', [])
@@ -339,6 +354,55 @@ class PappersSource(BaseSource):
         except Exception as e:
             print(f"[Pappers] ✗ Error getting company details for SIREN {siren}: {e}")
             return None
+
+    def _filter_entreprises_dirigees(self, entreprises: List[Dict], first_name: str, last_name: str) -> List[Dict]:
+        """
+        v3.1: Filtre les entreprises dirigées pour ne garder que celles où le représentant
+        correspond au nom complet recherché (évite les homonymes).
+
+        Structure Pappers:
+        {
+          "representant": {
+            "nom": "Kouassi",
+            "prenoms": "Chris Emerson"  OU "prenom": "Chris"
+          },
+          "entreprise": {...}
+        }
+        """
+        if not entreprises:
+            return []
+
+        filtered = []
+        first_normalized = first_name.lower().strip()
+        last_normalized = last_name.lower().strip()
+
+        for item in entreprises:
+            representant = item.get('representant', {})
+            if not representant:
+                continue
+
+            # Pappers peut utiliser "prenoms" (pluriel) ou "prenom" (singulier)
+            rep_prenoms = representant.get('prenoms', '').lower().strip()
+            if not rep_prenoms:
+                rep_prenoms = representant.get('prenom', '').lower().strip()
+
+            rep_nom = representant.get('nom', '').lower().strip()
+
+            # Vérifier correspondance exacte du nom de famille
+            if rep_nom != last_normalized:
+                continue
+
+            # Vérifier que le prénom correspond (peut être juste le premier prénom)
+            # Ex: "Chris Emerson" vs "Chris" → OK
+            # Ex: "Chris Emerson" vs "Aklade" → NON
+            if first_normalized in rep_prenoms or rep_prenoms in first_normalized:
+                filtered.append(item)
+            else:
+                # Log de rejet pour debug
+                entreprise_nom = item.get('entreprise', {}).get('denomination', 'Unknown')
+                print(f"[Pappers] ✗ Entreprise dirigée rejected (homonym): {entreprise_nom} - {rep_prenoms} {rep_nom}")
+
+        return filtered
 
     def _calculate_total_credits(self, num_companies: int) -> float:
         """Calcule le coût total estimé en crédits"""
