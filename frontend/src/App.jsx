@@ -166,7 +166,7 @@ function App() {
                       <div className="w-full">
                         <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
                           <span className="font-medium">{progress.percent}%</span>
-                          <span className="text-xs text-gray-400">~30-45s (v3.1 parallèle)</span>
+                          <span className="text-xs text-gray-400">~1-2 min (v3.1)</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                           <div
@@ -178,48 +178,37 @@ function App() {
 
                       {/* Étapes de progression */}
                       <div className="space-y-2 text-sm">
-                        <div className={`flex items-center space-x-2 ${progress.step === 'cache' || progress.step === 'cache_hit' ? 'text-primary-600 font-medium' : progress.percent > 5 ? 'text-green-600' : 'text-gray-400'}`}>
-                          {progress.percent > 5 ? (
+                        <div className={`flex items-center space-x-2 ${progress.step === 'cache' || progress.step === 'cache_hit' ? 'text-primary-600 font-medium' : progress.percent > 2 ? 'text-green-600' : 'text-gray-400'}`}>
+                          {progress.percent > 2 ? (
                             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                             </svg>
                           ) : (
                             <div className="w-5 h-5 rounded-full border-2 border-current"></div>
                           )}
-                          <span>Vérification du cache</span>
+                          <span>Cache & collecte sources</span>
                         </div>
 
-                        <div className={`flex items-center space-x-2 ${progress.step === 'pappers' ? 'text-primary-600 font-medium' : progress.percent > 20 ? 'text-green-600' : 'text-gray-400'}`}>
-                          {progress.percent > 20 ? (
+                        <div className={`flex items-center space-x-2 ${progress.step === 'validation' ? 'text-primary-600 font-medium' : progress.percent > 15 ? 'text-green-600' : 'text-gray-400'}`}>
+                          {progress.percent > 15 ? (
                             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                             </svg>
                           ) : (
                             <div className="w-5 h-5 rounded-full border-2 border-current"></div>
                           )}
-                          <span>Données légales (Pappers)</span>
+                          <span>Validation URLs (235 sources)</span>
                         </div>
 
-                        <div className={`flex items-center space-x-2 ${progress.step === 'serper' ? 'text-primary-600 font-medium' : progress.percent > 30 ? 'text-green-600' : 'text-gray-400'}`}>
-                          {progress.percent > 30 ? (
+                        <div className={`flex items-center space-x-2 ${progress.step === 'firecrawl' || progress.step === 'scraped' ? 'text-primary-600 font-medium' : progress.percent > 60 ? 'text-green-600' : 'text-gray-400'}`}>
+                          {progress.percent > 60 ? (
                             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                             </svg>
                           ) : (
                             <div className="w-5 h-5 rounded-full border-2 border-current"></div>
                           )}
-                          <span>Recherche Google (235+ URLs)</span>
-                        </div>
-
-                        <div className={`flex items-center space-x-2 ${progress.step === 'firecrawl' || progress.step === 'scraped' ? 'text-primary-600 font-medium' : progress.percent > 70 ? 'text-green-600' : 'text-gray-400'}`}>
-                          {progress.percent > 70 ? (
-                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                            </svg>
-                          ) : (
-                            <div className="w-5 h-5 rounded-full border-2 border-current"></div>
-                          )}
-                          <span>Scraping parallèle (50 pages, 5 jobs)</span>
+                          <span>Scraping parallèle (50 pages, ~40-50s)</span>
                         </div>
 
                         <div className={`flex items-center space-x-2 ${progress.step === 'llm' ? 'text-primary-600 font-medium' : progress.percent > 95 ? 'text-green-600' : 'text-gray-400'}`}>
@@ -230,7 +219,7 @@ function App() {
                           ) : (
                             <div className="w-5 h-5 rounded-full border-2 border-current"></div>
                           )}
-                          <span>Analyse IA (GPT-4o)</span>
+                          <span>Analyse IA (GPT-4o, 21 sections)</span>
                         </div>
                       </div>
 

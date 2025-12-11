@@ -118,8 +118,8 @@ def search_person_stream():
                 yield f"data: {json.dumps({'type': 'progress', 'step': 'init', 'message': 'Initialisation...', 'percent': 0})}\n\n"
                 time.sleep(0.1)
 
-                # Vérifier le cache
-                yield f"data: {json.dumps({'type': 'progress', 'step': 'cache', 'message': 'Vérification du cache...', 'percent': 5})}\n\n"
+                # Vérifier le cache (~0.5s)
+                yield f"data: {json.dumps({'type': 'progress', 'step': 'cache', 'message': 'Vérification du cache...', 'percent': 2})}\n\n"
                 cached_result = profile_service.cache.get(person_input.first_name, person_input.last_name, person_input.company, force_refresh=force_refresh)
 
                 if cached_result and not force_refresh:
@@ -127,24 +127,29 @@ def search_person_stream():
                     yield f"data: {json.dumps({'type': 'complete', 'success': True, 'data': cached_result['profile_data'], 'cached': True, 'cache_age_seconds': cached_result['cache_age_seconds']})}\n\n"
                     return
 
-                # Collecte de données
-                yield f"data: {json.dumps({'type': 'progress', 'step': 'scraping', 'message': 'Collecte des sources web...', 'percent': 10})}\n\n"
+                # Collecte de données (~2s = 2%)
+                yield f"data: {json.dumps({'type': 'progress', 'step': 'scraping', 'message': 'Collecte des sources web...', 'percent': 5})}\n\n"
                 time.sleep(0.5)
 
-                yield f"data: {json.dumps({'type': 'progress', 'step': 'pappers', 'message': 'Récupération données légales (Pappers Premium)...', 'percent': 20})}\n\n"
+                # Pappers API (~2s = 2%)
+                yield f"data: {json.dumps({'type': 'progress', 'step': 'pappers', 'message': 'Récupération données légales (Pappers Premium)...', 'percent': 8})}\n\n"
                 time.sleep(0.5)
 
-                # v3.1: Serper génère maintenant 235+ URLs (vs 110 en v2)
-                yield f"data: {json.dumps({'type': 'progress', 'step': 'serper', 'message': 'Recherche Google (235+ URLs)...', 'percent': 30})}\n\n"
+                # v3.1: Serper génère maintenant 235+ URLs (~2s = 2%)
+                yield f"data: {json.dumps({'type': 'progress', 'step': 'serper', 'message': 'Recherche Google (235+ URLs)...', 'percent': 12})}\n\n"
                 time.sleep(0.5)
 
-                # v3.1: Dynamique selon config (50 scrapes par défaut, 30s en parallèle)
+                # URL Validation (~5s = 5%)
+                yield f"data: {json.dumps({'type': 'progress', 'step': 'validation', 'message': 'Validation des URLs (235 URLs)...', 'percent': 15})}\n\n"
+                time.sleep(0.5)
+
+                # v3.1: Scraping = 50% du temps total (~40-50s = 40%)
                 max_scrapes = int(os.getenv('MAX_TOTAL_SCRAPES', '3'))
                 concurrent_jobs = int(os.getenv('FIRECRAWL_MAX_CONCURRENT_JOBS', '5'))
                 scrape_mode = "parallèle" if concurrent_jobs > 1 else "séquentiel"
-                est_time = "~30-45s" if concurrent_jobs > 1 else "~2min"
+                est_time = "~40-50s" if concurrent_jobs > 1 else "~3-4min"
 
-                yield f"data: {json.dumps({'type': 'progress', 'step': 'firecrawl', 'message': f'Scraping {scrape_mode} ({max_scrapes} pages, {est_time})...', 'percent': 40})}\n\n"
+                yield f"data: {json.dumps({'type': 'progress', 'step': 'firecrawl', 'message': f'Scraping {scrape_mode} ({max_scrapes} pages, {est_time})...', 'percent': 20})}\n\n"
 
                 # Lancer le scraping réel (v3.1: optimisé avec scraping parallèle)
                 scraped_data = profile_service.scraper.scrape_person_data(
@@ -153,11 +158,11 @@ def search_person_stream():
                     person_input.company
                 )
 
-                # v3.1: Afficher stats de scraping réelles
+                # v3.1: Afficher stats de scraping réelles (scraping terminé = 60% du processus)
                 stats = scraped_data.get("stats", {})
                 attempted = stats.get("attempted", 0)
                 successful = stats.get("successful", 0)
-                yield f"data: {json.dumps({'type': 'progress', 'step': 'scraped', 'message': f'Scraping terminé : {successful}/{attempted} pages scraped avec succès', 'percent': 70})}\n\n"
+                yield f"data: {json.dumps({'type': 'progress', 'step': 'scraped', 'message': f'Scraping terminé : {successful}/{attempted} pages OK', 'percent': 60})}\n\n"
 
                 scraped_content_list = [
                     data for data in scraped_data["scraped_content"]
@@ -168,8 +173,8 @@ def search_person_stream():
                     yield f"data: {json.dumps({'type': 'error', 'message': 'Aucune donnée valide trouvée'})}\n\n"
                     return
 
-                # Analyse avec LLM
-                yield f"data: {json.dumps({'type': 'progress', 'step': 'llm', 'message': 'Analyse IA en cours (GPT-4o, ~30s)...', 'percent': 80})}\n\n"
+                # Analyse avec LLM = 35% du temps total (~25-40s)
+                yield f"data: {json.dumps({'type': 'progress', 'step': 'llm', 'message': 'Analyse IA en cours (GPT-4o, 21 sections, ~30-40s)...', 'percent': 65})}\n\n"
 
                 profile_data = profile_service.llm.analyze_profile(
                     person_input.first_name,
