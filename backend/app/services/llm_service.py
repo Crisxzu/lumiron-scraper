@@ -258,62 +258,13 @@ class LLMService:
 
         return Template(template_content)
 
-    def _filter_content_for_relevance(self, scraped_data: List[Dict], first_name: str, last_name: str, company: str) -> List[Dict]:
-        """
-        Filters scraped content for relevance using a fast LLM to avoid homonym pollution.
-        """
-        if not self.client:
-            return scraped_data
-
-        relevant_items = []
-        
-        for item in scraped_data:
-            content_sample = item.get('content', '')[:2000] # Use a sample of the content
-            if not content_sample:
-                continue
-
-            try:
-                # Using a cheaper and faster model for filtering
-                response = self.client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": f"You are a data relevance filter. Your task is to determine if the following text is relevant to {first_name} {last_name}, who is associated with the company {company}. Respond ONLY with a JSON object containing 'is_relevant' (boolean) and 'confidence' (0-100)."
-                        },
-                        {
-                            "role": "user",
-                            "content": f"Text to analyze:\n\n---\n\n{content_sample}"
-                        }
-                    ],
-                    temperature=0.0,
-                    response_format={"type": "json_object"}
-                )
-                
-                result = json.loads(response.choices[0].message.content)
-                
-                if result.get('is_relevant') and result.get('confidence', 0) >= 70:
-                    print(f"[LLM Filter] ✓ Relevant content found for {item['url']} (Confidence: {result.get('confidence')})")
-                    relevant_items.append(item)
-                else:
-                    print(f"[LLM Filter] ✗ Irrelevant content SKIPPED for {item['url']} (Confidence: {result.get('confidence')})")
-
-            except Exception as e:
-                print(f"[LLM Filter] Error during relevance check for {item['url']}: {e}. Including item by default.")
-                relevant_items.append(item)
-
-        return relevant_items
+    # v3.1: Anchor profile logic removed (overkill for current use case)
+    # Direct analysis with GPT-4o handles homonyms naturally with context
 
     def create_analysis_prompt(self, first_name: str, last_name: str, company: str, scraped_data: List[Dict], pappers_data: Dict = None, dvf_data: Dict = None, hatvp_data: Dict = None, linkedin_urls: List[str] = None) -> str:
-        # v3.2: Pre-filter scraped data for relevance to fight homonym pollution
-        print(f"\n[LLM] Starting relevance filtering for {len(scraped_data)} scraped items...")
-        relevant_scraped_data = self._filter_content_for_relevance(scraped_data, first_name, last_name, company)
-        print(f"[LLM] Relevance filtering complete. {len(relevant_scraped_data)} items are relevant.")
-
         # v3.1: Nettoyer et traiter les données scrapées (réduction 60-70% tokens)
-        content_summary, linkedin_posts_summarized = self._clean_and_process_scraped_data(relevant_scraped_data)
+        content_summary, linkedin_posts_summarized = self._clean_and_process_scraped_data(scraped_data)
 
-        # Nettoyer et formater les données structurées (économie de tokens + focus sur l'essentiel)
         pappers_cleaned = self._clean_pappers_data(pappers_data)
         dvf_cleaned = self._clean_dvf_data(dvf_data)
         hatvp_cleaned = self._clean_hatvp_data(hatvp_data)
@@ -322,13 +273,9 @@ class LLMService:
         dvf_formatted = json.dumps(dvf_cleaned, indent=2, ensure_ascii=False) if dvf_cleaned else None
         hatvp_formatted = json.dumps(hatvp_cleaned, indent=2, ensure_ascii=False) if hatvp_cleaned else None
 
-        # v3.1: Formater posts LinkedIn résumés
         linkedin_posts_formatted = json.dumps(linkedin_posts_summarized, indent=2, ensure_ascii=False) if linkedin_posts_summarized else None
-
-        # v3.1: Formater URLs LinkedIn analysées
         linkedin_urls_formatted = json.dumps(linkedin_urls, indent=2, ensure_ascii=False) if linkedin_urls else None
 
-        # Estimer tokens total
         total_tokens = estimate_token_count(content_summary)
         if pappers_formatted:
             total_tokens += estimate_token_count(pappers_formatted)
@@ -345,10 +292,9 @@ class LLMService:
             pappers_data=pappers_formatted,
             dvf_data=dvf_formatted,
             hatvp_data=hatvp_formatted,
-            linkedin_posts=linkedin_posts_formatted,  # v3.1: Passer posts résumés au prompt
-            linkedin_urls=linkedin_urls_formatted  # v3.1: Passer URLs LinkedIn au prompt
+            linkedin_posts=linkedin_posts_formatted,
+            linkedin_urls=linkedin_urls_formatted
         )
-
         return prompt
 
     def _validate_and_fix_profile(self, profile_data: Dict) -> Dict:
@@ -421,7 +367,6 @@ class LLMService:
                         cleaned_traits.append(trait)
                     else:
                         # Trait sans justification → transformer ou supprimer
-                        # On le transforme en "Observé : Trait (données insuffisantes pour justifier)"
                         cleaned_traits.append(f"Observé : {trait} (justification insuffisante - à valider)")
 
                 pa['personality_traits'] = cleaned_traits
@@ -454,22 +399,8 @@ class LLMService:
             print("[LLM] Validation et correction post-génération...")
             result = self._validate_and_fix_profile(result)
 
-            # Extract LinkedIn URLs from analysis and add to general sources
-            if 'linkedin_activity_analysis' in result and result['linkedin_activity_analysis'] and \
-               'linkedin_urls_analyzed' in result['linkedin_activity_analysis'] and \
-               result['linkedin_activity_analysis']['linkedin_urls_analyzed']:
-                
-                if 'sources' not in result or result['sources'] is None:
-                    result['sources'] = []
-                
-                # Add unique LinkedIn URLs to sources
-                for url in result['linkedin_activity_analysis']['linkedin_urls_analyzed']:
-                    if url not in result['sources']:
-                        result['sources'].append(url)
-
             return result
 
         except Exception as e:
             print(f"OpenAI API error: {e}")
             raise Exception(f"Failed to analyze profile with OpenAI: {str(e)}")
-

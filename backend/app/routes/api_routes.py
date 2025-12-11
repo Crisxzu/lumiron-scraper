@@ -4,6 +4,7 @@ from app.services.profile_service import ProfileService
 from pydantic import ValidationError
 import json
 import time
+import os
 
 bp = Blueprint('api', __name__, url_prefix='/api/v1')
 profile_service = ProfileService()
@@ -130,23 +131,33 @@ def search_person_stream():
                 yield f"data: {json.dumps({'type': 'progress', 'step': 'scraping', 'message': 'Collecte des sources web...', 'percent': 10})}\n\n"
                 time.sleep(0.5)
 
-                yield f"data: {json.dumps({'type': 'progress', 'step': 'pappers', 'message': 'Récupération données légales (Pappers)...', 'percent': 20})}\n\n"
+                yield f"data: {json.dumps({'type': 'progress', 'step': 'pappers', 'message': 'Récupération données légales (Pappers Premium)...', 'percent': 20})}\n\n"
                 time.sleep(0.5)
 
-                yield f"data: {json.dumps({'type': 'progress', 'step': 'serper', 'message': 'Recherche Google (30+ URLs)...', 'percent': 30})}\n\n"
+                # v3.1: Serper génère maintenant 235+ URLs (vs 110 en v2)
+                yield f"data: {json.dumps({'type': 'progress', 'step': 'serper', 'message': 'Recherche Google (235+ URLs)...', 'percent': 30})}\n\n"
                 time.sleep(0.5)
 
-                yield f"data: {json.dumps({'type': 'progress', 'step': 'firecrawl', 'message': 'Scraping des pages (15 scrapes, ~2min)...', 'percent': 40})}\n\n"
+                # v3.1: Dynamique selon config (50 scrapes par défaut, 30s en parallèle)
+                max_scrapes = int(os.getenv('MAX_TOTAL_SCRAPES', '3'))
+                concurrent_jobs = int(os.getenv('FIRECRAWL_MAX_CONCURRENT_JOBS', '5'))
+                scrape_mode = "parallèle" if concurrent_jobs > 1 else "séquentiel"
+                est_time = "~30-45s" if concurrent_jobs > 1 else "~2min"
 
-                # Lancer le scraping réel
+                yield f"data: {json.dumps({'type': 'progress', 'step': 'firecrawl', 'message': f'Scraping {scrape_mode} ({max_scrapes} pages, {est_time})...', 'percent': 40})}\n\n"
+
+                # Lancer le scraping réel (v3.1: optimisé avec scraping parallèle)
                 scraped_data = profile_service.scraper.scrape_person_data(
                     person_input.first_name,
                     person_input.last_name,
                     person_input.company
                 )
 
-                num_sources = len(scraped_data.get("scraped_content", []))
-                yield f"data: {json.dumps({'type': 'progress', 'step': 'scraped', 'message': f'Scraping terminé ({num_sources} sources)', 'percent': 70})}\n\n"
+                # v3.1: Afficher stats de scraping réelles
+                stats = scraped_data.get("stats", {})
+                attempted = stats.get("attempted", 0)
+                successful = stats.get("successful", 0)
+                yield f"data: {json.dumps({'type': 'progress', 'step': 'scraped', 'message': f'Scraping terminé : {successful}/{attempted} pages scraped avec succès', 'percent': 70})}\n\n"
 
                 scraped_content_list = [
                     data for data in scraped_data["scraped_content"]

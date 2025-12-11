@@ -43,7 +43,8 @@ class ProfileService:
                 scraped_content_list,
                 scraped_data.get("pappers_data"),
                 scraped_data.get("dvf_data"),
-                scraped_data.get("hatvp_data")
+                scraped_data.get("hatvp_data"),
+                scraped_data.get("linkedin_urls", [])  # v3.1: Pass LinkedIn URLs for traceability
             )
 
             # v3.1: Ajouter sources web + URLs LinkedIn analysées
