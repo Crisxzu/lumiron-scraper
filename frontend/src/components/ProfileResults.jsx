@@ -21,6 +21,8 @@ const ProfileResults = ({ profile }) => {
     { id: 'financial', label: 'Financier', icon: '💰' },
     { id: 'media', label: 'Médias & Réputation', icon: '📰' },
     { id: 'network', label: 'Réseau & Influence', icon: '🤝' },
+    { id: 'linkedin', label: 'LinkedIn', icon: '💼' },
+    { id: 'pappers', label: 'Pappers Premium', icon: '📋' },
     { id: 'analysis', label: 'Analyse', icon: '🔍' },
   ];
 
@@ -676,6 +678,271 @@ const ProfileResults = ({ profile }) => {
           )}
 
           {/* Analysis Tab */}
+          {/* LinkedIn Activity Tab (v3.1) */}
+          {activeTab === 'linkedin' && profile.linkedin_activity_analysis && (
+            <div className="space-y-6">
+              <h3 className="text-2xl font-semibold text-gray-800 mb-4">💼 Activité LinkedIn</h3>
+
+              {/* Thought Leadership Score */}
+              {profile.linkedin_activity_analysis.thought_leadership_score !== undefined && (
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg">
+                  <div className="flex justify-between items-center mb-4">
+                    <div>
+                      <h4 className="text-lg font-semibold text-gray-800">Score de Leadership d'Opinion</h4>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Niveau: <span className="font-medium">{profile.linkedin_activity_analysis.expertise_level || 'Non déterminé'}</span>
+                      </p>
+                    </div>
+                    <div className="text-4xl font-bold text-primary-600">
+                      {profile.linkedin_activity_analysis.thought_leadership_score}/100
+                    </div>
+                  </div>
+
+                  {/* Score interpretation */}
+                  <div className="mt-4 pt-4 border-t border-indigo-200">
+                    <div className="w-full bg-gray-200 rounded-full h-3">
+                      <div
+                        className="bg-primary-600 h-3 rounded-full transition-all"
+                        style={{ width: `${profile.linkedin_activity_analysis.thought_leadership_score}%` }}
+                      ></div>
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-500 mt-2">
+                      <span>0 - Faible</span>
+                      <span>40 - Modéré</span>
+                      <span>60 - Avancé</span>
+                      <span>80+ - Expert</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Posts Analyzed & Recent Posts */}
+              {profile.linkedin_activity_analysis.recent_posts && profile.linkedin_activity_analysis.recent_posts.length > 0 && (
+                <div>
+                  <h4 className="font-semibold text-gray-800 mb-4">
+                    📝 Posts Analysés ({profile.linkedin_activity_analysis.posts_analyzed || 0})
+                  </h4>
+                  <div className="space-y-4">
+                    {profile.linkedin_activity_analysis.recent_posts.map((post, idx) => (
+                      <div key={idx} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <p className="text-sm text-gray-700 mb-3">{post.content_summary}</p>
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {post.themes && post.themes.map((theme, i) => (
+                            <span key={i} className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                              {theme}
+                            </span>
+                          ))}
+                        </div>
+                        {post.date && (
+                          <p className="text-xs text-gray-500 mt-2">📅 {post.date}</p>
+                        )}
+                        {post.engagement_quality && (
+                          <p className="text-xs text-gray-600 mt-1">💬 {post.engagement_quality}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Recurring Themes */}
+              {profile.linkedin_activity_analysis.recurring_themes && profile.linkedin_activity_analysis.recurring_themes.length > 0 && (
+                <div className="bg-white p-4 rounded-lg border border-gray-200">
+                  <h4 className="font-semibold text-gray-800 mb-3">🎯 Thématiques Récurrentes</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {profile.linkedin_activity_analysis.recurring_themes.map((theme, idx) => (
+                      <span key={idx} className="px-3 py-1 bg-primary-100 text-primary-700 text-sm rounded-full font-medium">
+                        {theme}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Authority Signals */}
+              {profile.linkedin_activity_analysis.authority_signals && (
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="font-medium text-gray-700 mb-2">⭐ Signaux d'Autorité</h4>
+                  <p className="text-sm text-gray-700">{profile.linkedin_activity_analysis.authority_signals}</p>
+                </div>
+              )}
+
+              {/* Engagement Analysis */}
+              {profile.linkedin_activity_analysis.engagement_analysis && (
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="font-medium text-gray-700 mb-2">📊 Analyse d'Engagement</h4>
+                  <p className="text-sm text-gray-700">{profile.linkedin_activity_analysis.engagement_analysis}</p>
+                </div>
+              )}
+
+              {/* Professional Reputation */}
+              {profile.linkedin_activity_analysis.professional_reputation_assessment && (
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg border border-green-200">
+                  <h4 className="font-medium text-gray-800 mb-2">✨ Réputation Professionnelle</h4>
+                  <p className="text-sm text-gray-700">{profile.linkedin_activity_analysis.professional_reputation_assessment}</p>
+                </div>
+              )}
+
+              {/* LinkedIn URLs Analyzed */}
+              {profile.linkedin_activity_analysis.linkedin_urls_analyzed && profile.linkedin_activity_analysis.linkedin_urls_analyzed.length > 0 && (
+                <div className="border-t pt-4">
+                  <details className="cursor-pointer">
+                    <summary className="text-sm font-medium text-gray-700 mb-2">
+                      🔗 URLs LinkedIn Consultées ({profile.linkedin_activity_analysis.linkedin_urls_analyzed.length})
+                    </summary>
+                    <ul className="mt-3 space-y-1">
+                      {profile.linkedin_activity_analysis.linkedin_urls_analyzed.map((url, idx) => (
+                        <li key={idx} className="text-xs">
+                          <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline break-all">
+                            {url}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Pappers Deep Analysis Tab (v3.1) */}
+          {activeTab === 'pappers' && profile.pappers_deep_analysis && (
+            <div className="space-y-6">
+              <h3 className="text-2xl font-semibold text-gray-800 mb-4">📋 Analyse Pappers Premium</h3>
+
+              {/* Mandate History */}
+              {profile.pappers_deep_analysis.mandate_history && profile.pappers_deep_analysis.mandate_history.length > 0 && (
+                <div>
+                  <h4 className="font-semibold text-gray-800 mb-3">👔 Historique des Mandats</h4>
+                  <div className="space-y-3">
+                    {profile.pappers_deep_analysis.mandate_history.map((mandate, idx) => (
+                      <div key={idx} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-medium text-gray-800">{mandate.company || mandate.company_name}</p>
+                            <p className="text-sm text-gray-600 mt-1">{mandate.role}</p>
+                            {mandate.siren && (
+                              <p className="text-xs text-gray-500 mt-1">SIREN: {mandate.siren}</p>
+                            )}
+                          </div>
+                          <span className={`px-2 py-1 text-xs rounded-full ${
+                            mandate.status === 'Actif' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                          }`}>
+                            {mandate.status || 'Statut inconnu'}
+                          </span>
+                        </div>
+                        <div className="mt-2 text-sm text-gray-600">
+                          {mandate.start_date || mandate.since} → {mandate.end_date || mandate.until || 'En cours'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Financial History */}
+              {profile.pappers_deep_analysis.financial_history && profile.pappers_deep_analysis.financial_history.length > 0 && (
+                <div>
+                  <h4 className="font-semibold text-gray-800 mb-3">💰 Historique Financier (5 ans)</h4>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full bg-white border border-gray-200 rounded-lg">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Année</th>
+                          <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">CA</th>
+                          <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Résultat</th>
+                          <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Capitaux Propres</th>
+                          <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Effectif</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {profile.pappers_deep_analysis.financial_history.map((year, idx) => (
+                          <tr key={idx} className="border-t border-gray-200">
+                            <td className="px-4 py-2 text-sm text-gray-800 font-medium">{year.year}</td>
+                            <td className="px-4 py-2 text-sm text-gray-700">{year.revenue || 'N/A'}</td>
+                            <td className="px-4 py-2 text-sm text-gray-700">{year.result || 'N/A'}</td>
+                            <td className="px-4 py-2 text-sm text-gray-700">{year.equity || 'N/A'}</td>
+                            <td className="px-4 py-2 text-sm text-gray-700">{year.employees !== undefined ? year.employees : 'N/A'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Legal Issues */}
+              {profile.pappers_deep_analysis.legal_issues && profile.pappers_deep_analysis.legal_issues.length > 0 && (
+                <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                  <h4 className="font-semibold text-red-800 mb-3">⚠️ Questions Juridiques</h4>
+                  <ul className="space-y-2">
+                    {profile.pappers_deep_analysis.legal_issues.map((issue, idx) => (
+                      <li key={idx} className="text-sm text-gray-700">• {issue}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Real Estate Assets */}
+              {profile.pappers_deep_analysis.real_estate_assets && profile.pappers_deep_analysis.real_estate_assets.length > 0 && (
+                <div>
+                  <h4 className="font-semibold text-gray-800 mb-3">🏠 Patrimoine Immobilier</h4>
+                  <div className="space-y-3">
+                    {profile.pappers_deep_analysis.real_estate_assets.map((asset, idx) => (
+                      <div key={idx} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <p className="font-medium text-gray-800">{asset.type}</p>
+                        {asset.location && (
+                          <p className="text-sm text-gray-600 mt-1">📍 {asset.location}</p>
+                        )}
+                        {asset.value && (
+                          <p className="text-sm text-gray-600 mt-1">💵 {asset.value}</p>
+                        )}
+                        {asset.date && (
+                          <p className="text-xs text-gray-500 mt-1">📅 {asset.date}</p>
+                        )}
+                        {asset.details && (
+                          <p className="text-sm text-gray-700 mt-2">{asset.details}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* BODACC Complete */}
+              {profile.pappers_deep_analysis.bodacc_complete && profile.pappers_deep_analysis.bodacc_complete.length > 0 && (
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="font-medium text-gray-700 mb-2">📰 Publications BODACC Complètes</h4>
+                  <ul className="space-y-1">
+                    {profile.pappers_deep_analysis.bodacc_complete.map((pub, idx) => (
+                      <li key={idx} className="text-sm text-gray-700">• {pub}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* RCS Observations */}
+              {profile.pappers_deep_analysis.rcs_observations && profile.pappers_deep_analysis.rcs_observations.length > 0 && (
+                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                  <h4 className="font-medium text-yellow-800 mb-2">📌 Observations RCS</h4>
+                  <ul className="space-y-1">
+                    {profile.pappers_deep_analysis.rcs_observations.map((obs, idx) => (
+                      <li key={idx} className="text-sm text-gray-700">• {obs}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Credibility Indicators */}
+              {profile.pappers_deep_analysis.credibility_indicators && (
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg border border-green-200">
+                  <h4 className="font-medium text-gray-800 mb-2">✅ Indicateurs de Crédibilité</h4>
+                  <p className="text-sm text-gray-700">{profile.pappers_deep_analysis.credibility_indicators}</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {activeTab === 'analysis' && (
             <div className="space-y-6">
               {profile.coherence_analysis && (
@@ -684,10 +951,16 @@ const ProfileResults = ({ profile }) => {
 
                   {profile.coherence_analysis.reliability_score !== undefined && (
                     <div className="bg-gradient-to-r from-green-50 to-teal-50 p-6 rounded-lg mb-4">
-                      <div className="flex justify-between items-center">
+                      <div className="flex justify-between items-center mb-4">
                         <h4 className="text-lg font-semibold text-gray-800">Score de Fiabilité</h4>
                         <div className="text-4xl font-bold text-primary-600">{profile.coherence_analysis.reliability_score}/100</div>
                       </div>
+                      {profile.coherence_analysis.reliability_justification && (
+                        <div className="mt-4 pt-4 border-t border-teal-200">
+                          <h5 className="text-sm font-medium text-gray-700 mb-2">Justification</h5>
+                          <p className="text-sm text-gray-600 leading-relaxed">{profile.coherence_analysis.reliability_justification}</p>
+                        </div>
+                      )}
                     </div>
                   )}
 

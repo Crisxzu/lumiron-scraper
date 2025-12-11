@@ -53,20 +53,28 @@ Solution full-stack pour l'analyse complète de profils professionnels avec donn
 
 ## ✨ Fonctionnalités
 
-### Backend (v3)
-- ✅ **Due Diligence enrichie** - 18 sections vs 11 en v2 (psychologie, finances, réseau, analyse juridique)
-- ✅ **Sources officielles FR** - Pappers (légal/financier), DVF (immobilier), HATVP (PPE)
-- ✅ **SSE streaming** - Progression temps réel avec 6 étapes (~2-3min)
+### Backend (v3.1) 🆕
+- ✅ **Due Diligence enrichie** - **21 sections** vs 18 en v3.0 (+3 nouvelles sections v3.1)
+- ✅ **LinkedIn Activity Analysis (v3.1)** - Analyse posts LinkedIn, thought leadership score, thématiques récurrentes
+- ✅ **Pappers Deep Analysis (v3.1)** - Historique financier 5 ans, mandats, parcelles cadastrales, décisions justice
+- ✅ **Reliability Justification (v3.1)** - Justification détaillée du reliability_score (3-6 lignes)
+- ✅ **Firecrawl Premium optimisé** - **5 jobs parallèles** (-80% temps scraping), timeout 45s, 50 scrapes max
+- ✅ **Serper v3.1** - **235 URLs** collectées (vs 110), 22 queries dont 5 specialized searches
+- ✅ **Sources officielles FR** - Pappers Premium (légal/financier/cadastre), DVF (immobilier), HATVP (PPE)
+- ✅ **SSE streaming** - Progression temps réel avec 6 étapes (~1.5-2min avec parallel scraping)
 - ✅ **Double sécurité** - Prompt renforcé + validation Python post-LLM (anti-hallucination)
 - ✅ **Scoring de risque** - Crédibilité, réputation, influence, fiabilité (/100) + niveau de risque
 - ✅ **Red flags** - Détection automatique avec sévérité (Critique/Modéré/Mineur)
-- ✅ **Traçabilité** - Sources obligatoires pour chaque donnée financière
+- ✅ **Traçabilité** - Sources obligatoires + URLs LinkedIn consultées
 - ✅ **Architecture modulaire** - Système de sources extensible
 - ✅ **Cache SQLite intelligent** - TTL configurable + force refresh
-- ✅ **Analyse en français** - Tous les résultats structurés en français
+- ✅ **Performance monitoring** - Logs détaillés du temps de scraping
 
-### Frontend (v3)
-- ✅ **6 onglets organisés** - Vue d'ensemble, Expérience, Financier, Médias, Réseau, Analyse
+### Frontend (v3.1) 🆕
+- ✅ **8 onglets organisés** - Vue d'ensemble, Expérience, Financier, Médias, Réseau, **LinkedIn** 🆕, **Pappers Premium** 🆕, Analyse
+- ✅ **Onglet LinkedIn (v3.1)** - Score thought leadership avec jauge, posts récents, thématiques, URLs consultées
+- ✅ **Onglet Pappers Premium (v3.1)** - Tableau financier 5 ans, mandats actifs/radiés, parcelles cadastrales
+- ✅ **Reliability Justification (v3.1)** - Affichée sous le score de fiabilité dans l'onglet Analyse
 - ✅ **Progression temps réel** - Barre de progression SSE avec 6 étapes visuelles
 - ✅ **Scores visuels** - Affichage des 4 scores (/100) + badge niveau de risque
 - ✅ **Red flags avec badges** - Alertes colorées par sévérité

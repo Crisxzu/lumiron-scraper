@@ -166,7 +166,7 @@ function App() {
                       <div className="w-full">
                         <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
                           <span className="font-medium">{progress.percent}%</span>
-                          <span className="text-xs text-gray-400">~2-3 minutes</span>
+                          <span className="text-xs text-gray-400">~30-45s (v3.1 parallèle)</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                           <div
@@ -208,7 +208,7 @@ function App() {
                           ) : (
                             <div className="w-5 h-5 rounded-full border-2 border-current"></div>
                           )}
-                          <span>Recherche Google (30+ URLs)</span>
+                          <span>Recherche Google (235+ URLs)</span>
                         </div>
 
                         <div className={`flex items-center space-x-2 ${progress.step === 'firecrawl' || progress.step === 'scraped' ? 'text-primary-600 font-medium' : progress.percent > 70 ? 'text-green-600' : 'text-gray-400'}`}>
@@ -219,7 +219,7 @@ function App() {
                           ) : (
                             <div className="w-5 h-5 rounded-full border-2 border-current"></div>
                           )}
-                          <span>Scraping des pages (15 scrapes)</span>
+                          <span>Scraping parallèle (50 pages, 5 jobs)</span>
                         </div>
 
                         <div className={`flex items-center space-x-2 ${progress.step === 'llm' ? 'text-primary-600 font-medium' : progress.percent > 95 ? 'text-green-600' : 'text-gray-400'}`}>
@@ -237,7 +237,7 @@ function App() {
                       {/* Info temps estimé */}
                       <div className="pt-4 border-t border-gray-100">
                         <p className="text-xs text-gray-500 text-center">
-                          💡 L'analyse v3 enrichie collecte et analyse 3x plus de données que la v2
+                          💡 v3.1 : Scraping parallèle (5 jobs) + Pappers Premium + 235 URLs analysées
                         </p>
                       </div>
                     </div>
